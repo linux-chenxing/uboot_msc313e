@@ -4,6 +4,7 @@ SUBLEVEL =
 EXTRAVERSION =
 NAME =
 
+
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
 # More info can be located in ./README
@@ -818,9 +819,22 @@ binary_size_check: u-boot.bin FORCE
 	fi
 
 u-boot.bin: u-boot FORCE
-	$(call if_changed,objcopy)
+	$(call cmd,objcopy)
 	$(call DO_STATIC_RELA,$<,$@,$(CONFIG_SYS_TEXT_BASE))
 	$(BOARD_SIZE_CHECK)
+	@./create_img.sh
+
+#ifdef CONFIG_UBOOT_PADDING_SIZE
+#	@python pad_file.py -i $(obj)/u-boot.bin -o $(obj)/UBOOT.bin -s $(CONFIG_UBOOT_PADDING_SIZE)
+#else
+#	@python pad_file.py -i $(obj)/u-boot.bin -o $(obj)/UBOOT.bin -s 524288
+#endif
+#ifeq ($(SOC),cedric)
+#	@python append_UBOOT_version.py $(obj)/UBOOT.bin C3
+#endif
+#ifeq ($(SOC),chicago)
+#	@python append_UBOOT_version.py $(obj)/UBOOT.bin C4 
+#endif
 
 u-boot.ldr:	u-boot
 		$(CREATE_LDR_ENV)
@@ -1082,6 +1096,15 @@ endif
 # make sure no implicit rule kicks in
 $(sort $(u-boot-init) $(u-boot-main)): $(u-boot-dirs) ;
 
+ifneq ($(CONFIG_INFINITY),)
+MS_PLATFORM_ID := I1
+endif
+ifneq ($(CONFIG_INFINITY3),)
+MS_PLATFORM_ID := I3
+endif
+ifneq ($(CONFIG_CEDRIC),)
+MS_PLATFORM_ID := C3 
+endif
 # Handle descending into subdirectories listed in $(vmlinux-dirs)
 # Preset locale variables to speed up the build process. Limit locale
 # tweaks to this spot to avoid wrong language settings when running
@@ -1105,6 +1128,11 @@ endef
 
 # Store (new) UBOOTRELEASE string in include/config/uboot.release
 include/config/uboot.release: include/config/auto.conf FORCE
+	@echo '  MVXV'
+	@python ms_gen_mvxv_h.py include/ms_version.h --comp_id CM_UBT1501 \
+                --changelist g$$(git log --format=%h -n 1) --chip_id $(MS_PLATFORM_ID) 
+#	@python ms_gen_mvxv_h.py include/ms_version.h --comp_id PLT_UBT1501 \
+		--changelist G$$(git describe --match CL* --tags --long | cut -b 12-18 |  awk '{print toupper($$0)}')	
 	$(call filechk,uboot.release)
 
 
@@ -1160,6 +1188,7 @@ prepare: prepare0
 
 define filechk_version.h
 	(echo \#define PLAIN_VERSION \"$(UBOOTRELEASE)\"; \
+	echo \#define U_BOOT_VERSION_CODE $(VERSION)$(PATCHLEVEL); \
 	echo \#define U_BOOT_VERSION \"U-Boot \" PLAIN_VERSION; \
 	echo \#define CC_VERSION_STRING \"$$($(CC) --version | head -n 1)\"; \
 	echo \#define LD_VERSION_STRING \"$$($(LD) --version | head -n 1)\"; )

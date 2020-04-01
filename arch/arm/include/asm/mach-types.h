@@ -236,7 +236,11 @@ extern unsigned int __machine_arch_type;
 #define MACH_TYPE_CSB726               1359
 #define MACH_TYPE_DAVINCI_DM6467_EVM   1380
 #define MACH_TYPE_DAVINCI_DM355_EVM    1381
+#define MACH_TYPE_CEDRIC               1382
+#define MACH_TYPE_CHICAGO              1383
 #define MACH_TYPE_LITTLETON            1388
+#define MACH_TYPE_INFINITY             1390
+#define MACH_TYPE_INFINITY3            1391
 #define MACH_TYPE_REALVIEW_PB11MP      1407
 #define MACH_TYPE_MX27_3DS             1430
 #define MACH_TYPE_HALIBUT              1439

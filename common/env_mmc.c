@@ -21,12 +21,20 @@
 #error CONFIG_ENV_SIZE_REDUND should be the same as CONFIG_ENV_SIZE
 #endif
 
+#if (defined(CONFIG_MS_NAND) && defined(CONFIG_MS_EMMC))
+char *mmc_env_name_spec = "MMC";
+#else
 char *env_name_spec = "MMC";
+#endif
 
 #ifdef ENV_IS_EMBEDDED
 env_t *env_ptr = &environment;
 #else /* ! ENV_IS_EMBEDDED */
+#if (defined(CONFIG_MS_NAND) && defined(CONFIG_MS_EMMC))
+extern env_t *env_ptr;
+#else
 env_t *env_ptr;
+#endif
 #endif /* ENV_IS_EMBEDDED */
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -53,7 +61,11 @@ __weak int mmc_get_env_addr(struct mmc *mmc, int copy, u32 *env_addr)
 	return 0;
 }
 
+#if (defined(CONFIG_MS_NAND) && defined(CONFIG_MS_EMMC))
+int mmc_env_init(void)
+#else
 int env_init(void)
+#endif
 {
 	/* use default */
 	gd->env_addr	= (ulong)&default_environment[0];
@@ -137,7 +149,11 @@ static inline int write_env(struct mmc *mmc, unsigned long size,
 static unsigned char env_flags;
 #endif
 
+#if (defined(CONFIG_MS_NAND) && defined(CONFIG_MS_EMMC))
+int mmc_saveenv(void)
+#else
 int saveenv(void)
+#endif
 {
 	ALLOC_CACHE_ALIGN_BUFFER(env_t, env_new, 1);
 	struct mmc *mmc = find_mmc_device(CONFIG_SYS_MMC_ENV_DEV);
@@ -289,7 +305,11 @@ err:
 #endif
 }
 #else /* ! CONFIG_ENV_OFFSET_REDUND */
+#if (defined(CONFIG_MS_NAND) && defined(CONFIG_MS_EMMC))
+void mmc_env_relocate_spec(void)
+#else
 void env_relocate_spec(void)
+#endif
 {
 #if !defined(ENV_IS_EMBEDDED)
 	ALLOC_CACHE_ALIGN_BUFFER(char, buf, CONFIG_ENV_SIZE);

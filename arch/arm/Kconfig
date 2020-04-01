@@ -802,6 +802,26 @@ config ARCH_UNIPHIER
 	select SUPPORT_SPL
 	select SPL
 	select OF_CONTROL if !SPL_BUILD
+	
+config CEDRIC
+    bool "Cedric platform"
+    select CPU_V7
+    select TARGET_CEDRIC
+
+config CHICAGO
+    bool "Chicago platform"
+    select CPU_V7
+    select TARGET_CHICAGO
+
+config INFINITY
+    bool "Infinity platform"
+    select CPU_V7
+    select TARGET_INFINITY
+
+config INFINITY3
+    bool "Infinity3 platform"
+    select CPU_V7
+    select TARGET_INFINITY3
 
 endchoice
 
@@ -836,6 +856,14 @@ source "arch/arm/cpu/armv7/uniphier/Kconfig"
 source "arch/arm/cpu/arm926ejs/versatile/Kconfig"
 
 source "arch/arm/cpu/armv7/zynq/Kconfig"
+
+source "arch/arm/cpu/armv7/cedric/Kconfig"
+
+source "arch/arm/cpu/armv7/chicago/Kconfig"
+
+source "arch/arm/cpu/armv7/infinity/Kconfig"
+
+source "arch/arm/cpu/armv7/infinity3/Kconfig"
 
 source "arch/arm/cpu/armv7/Kconfig"
 
@@ -985,5 +1013,7 @@ source "board/xaeniax/Kconfig"
 source "board/zipitz2/Kconfig"
 
 source "arch/arm/Kconfig.debug"
+
+
 
 endmenu

@@ -274,7 +274,7 @@ get_cluster(fsdata *mydata, __u32 clustnum, __u8 *buffer, unsigned long size)
 	if ((unsigned long)buffer & (ARCH_DMA_MINALIGN - 1)) {
 		ALLOC_CACHE_ALIGN_BUFFER(__u8, tmpbuf, mydata->sect_size);
 
-		printf("FAT: Misaligned buffer address (%p)\n", buffer);
+		//printf("FAT: Misaligned buffer address (%p)\n", buffer);
 
 		while (size >= mydata->sect_size) {
 			ret = disk_read(startsect++, 1, tmpbuf);
@@ -1321,3 +1321,795 @@ int fat_read_file(const char *filename, void *buf, loff_t offset, loff_t len,
 void fat_close(void)
 {
 }
+
+
+#ifdef CONFIG_MS_SDMMC
+/*
+ * Read at most 'maxsize' bytes from the file associated with 'dentptr'
+ * into 'buffer'.
+ * Return the number of bytes read or -1 on fatal errors.
+ */
+
+
+static long get_contents_fstart (fsdata *mydata, dir_entry *dentptr, __u8 *buffer, unsigned long maxsize,unsigned long fstart)
+{
+	unsigned long filesize = FAT2CPU32(dentptr->size), gotsize = 0;
+	unsigned int bytesperclust = mydata->clust_size * (mydata->sect_size);
+	__u32 curclust = START(dentptr);
+	__u32 endclust, newclust;
+	__u32 skippedclust,i;
+	unsigned long actsize;
+
+	debug("Filesize: %ld bytes\n", filesize);
+
+	if(fstart>=filesize )
+	{
+		return 0;
+
+	}
+	else if((fstart % bytesperclust) !=0)
+	{
+
+		printf("ERROR!! fstart must be cluster aligned!!\n");
+
+		return 0;
+	}
+
+
+	filesize=filesize-fstart;
+
+	if (maxsize > 0 && filesize > maxsize)
+		filesize = maxsize;
+
+	debug("%ld bytes\n", filesize);
+
+	skippedclust=fstart/bytesperclust;
+
+	for(i=0;i<skippedclust;i++)
+	{
+		curclust=get_fatent(mydata, curclust);
+	}
+
+	actsize = bytesperclust;
+	endclust = curclust;
+
+	do {
+		/* search for consecutive clusters */
+		while (actsize < filesize) {
+			newclust = get_fatent(mydata, endclust);
+			if ((newclust - 1) != endclust)
+				goto getit;
+			if (CHECK_CLUST(newclust, mydata->fatsize)) {
+				debug("curclust: 0x%x\n", newclust);
+				debug("Invalid FAT entry\n");
+				return gotsize;
+			}
+			endclust = newclust;
+			actsize += bytesperclust;
+		}
+
+		/* actsize >= file size */
+		actsize -= bytesperclust;
+
+		/* get remaining clusters */
+		if (get_cluster(mydata, curclust, buffer, (int)actsize) != 0) {
+			printf("Error reading cluster\n");
+			return -1;
+		}
+
+		/* get remaining bytes */
+		gotsize += (int)actsize;
+		filesize -= actsize;
+		buffer += actsize;
+		actsize = filesize;
+		if (get_cluster(mydata, endclust, buffer, (int)actsize) != 0) {
+			printf("Error reading cluster\n");
+			return -1;
+		}
+		gotsize += actsize;
+		return gotsize;
+getit:
+		if (get_cluster(mydata, curclust, buffer, (int)actsize) != 0) {
+			printf("Error reading cluster\n");
+			return -1;
+		}
+		gotsize += (int)actsize;
+		filesize -= actsize;
+		buffer += actsize;
+
+		curclust = get_fatent(mydata, endclust);
+		if (CHECK_CLUST(curclust, mydata->fatsize)) {
+			debug("curclust: 0x%x\n", curclust);
+			printf("Invalid FAT entry\n");
+			return gotsize;
+		}
+		actsize = bytesperclust;
+		endclust = curclust;
+	} while (1);
+}
+
+long do_fat_read_fstart (const char *filename, void *buffer, unsigned long maxsize, unsigned long fstart)
+{
+	ALLOC_CACHE_ALIGN_BUFFER(unsigned char, mbuffer, MAX_CLUSTSIZE);
+	char fnamecopy[2048];
+	boot_sector bs;
+	volume_info volinfo;
+	fsdata datablock;
+	fsdata *mydata = &datablock;
+	dir_entry *dentptr;
+	__u16 prevcksum = 0xffff;
+	char *subname = "";
+	int cursect;
+	int idx, isdir = 0;
+	int files = 0, dirs = 0;
+	long ret = 0;
+	int firsttime;
+	int root_cluster;
+	int j;
+	int dols;
+
+	dols=LS_NO;
+
+
+	if (read_bootsectandvi(&bs, &volinfo, &mydata->fatsize)) {
+		debug("Error: reading boot sector\n");
+		return -1;
+	}
+
+	root_cluster = bs.root_cluster;
+
+	if (mydata->fatsize == 32)
+		mydata->fatlength = bs.fat32_length;
+	else
+		mydata->fatlength = bs.fat_length;
+
+	mydata->fat_sect = bs.reserved;
+
+	cursect = mydata->rootdir_sect
+		= mydata->fat_sect + mydata->fatlength * bs.fats;
+
+	mydata->clust_size = bs.cluster_size;
+
+	if (mydata->fatsize == 32) {
+		mydata->data_begin = mydata->rootdir_sect -
+					(mydata->clust_size * 2);
+	} else {
+		int rootdir_size;
+
+		rootdir_size = ((bs.dir_entries[1]  * (int)256 +
+				 bs.dir_entries[0]) *
+				 sizeof(dir_entry)) /
+				 mydata->sect_size;
+		mydata->data_begin = mydata->rootdir_sect +
+					rootdir_size -
+					(mydata->clust_size * 2);
+	}
+
+	mydata->fatbufnum = -1;
+	mydata->fatbuf = malloc(FATBUFSIZE);
+
+	if(NULL==mydata->fatbuf)
+	{
+		return -1;
+	}
+
+#ifdef CONFIG_SUPPORT_VFAT
+	debug("VFAT Support enabled\n");
+#endif
+	debug("FAT%d, fat_sect: %d, fatlength: %d\n",
+	       mydata->fatsize, mydata->fat_sect, mydata->fatlength);
+	debug("Rootdir begins at cluster: %d, sector: %d, offset: %x\n"
+	       "Data begins at: %d\n",
+	       root_cluster,
+	       mydata->rootdir_sect,
+	       mydata->rootdir_sect * mydata->sect_size, mydata->data_begin);
+	debug("Cluster size: %d\n", mydata->clust_size);
+
+	/* "cwd" is always the root... */
+	while (ISDIRDELIM(*filename))
+		filename++;
+
+	/* Make a copy of the filename and convert it to lowercase */
+	strcpy(fnamecopy, filename);
+	downcase(fnamecopy);
+
+	if (*fnamecopy == '\0') {
+		if (!dols)
+		{
+			ret=-1;
+			goto BEACH;
+		}
+
+		dols = LS_ROOT;
+	} else if ((idx = dirdelim(fnamecopy)) >= 0) {
+		isdir = 1;
+		fnamecopy[idx] = '\0';
+		subname = fnamecopy + idx + 1;
+
+		/* Handle multiple delimiters */
+		while (ISDIRDELIM(*subname))
+			subname++;
+	} else if (dols) {
+		isdir = 1;
+	}
+
+	j = 0;
+	while (1) {
+		int i;
+
+		debug("FAT read sect=%d, clust_size=%d, DIRENTSPERBLOCK=%d\n",
+			cursect, mydata->clust_size, DIRENTSPERBLOCK);
+
+		if (disk_read(cursect, mydata->clust_size, mbuffer) < 0) {
+			debug("Error: reading rootdir block\n");
+
+			ret=-1;
+			goto BEACH;
+		}
+
+		dentptr = (dir_entry *) mbuffer;
+
+		for (i = 0; i < DIRENTSPERBLOCK; i++) {
+			char s_name[14], l_name[256];
+
+			l_name[0] = '\0';
+			if ((dentptr->attr & ATTR_VOLUME)) {
+#ifdef CONFIG_SUPPORT_VFAT
+				if ((dentptr->attr & ATTR_VFAT) &&
+				    (dentptr->name[0] & LAST_LONG_ENTRY_MASK)) {
+					prevcksum =
+						((dir_slot *)dentptr)->alias_checksum;
+
+					get_vfatname(mydata, 0,
+						     mbuffer,
+						     dentptr, l_name);
+
+					if (dols == LS_ROOT) {
+						char dirc;
+						int doit = 0;
+						int isdir =
+							(dentptr->attr & ATTR_DIR);
+
+						if (isdir) {
+							dirs++;
+							dirc = '/';
+							doit = 1;
+						} else {
+							dirc = ' ';
+							if (l_name[0] != 0) {
+								files++;
+								doit = 1;
+							}
+						}
+						if (doit) {
+							if (dirc == ' ') {
+								printf(" %8ld   %s%c\n",
+									(long)FAT2CPU32(dentptr->size),
+									l_name,
+									dirc);
+							} else {
+								printf("            %s%c\n",
+									l_name,
+									dirc);
+							}
+						}
+						dentptr++;
+						continue;
+					}
+					debug("Rootvfatname: |%s|\n",
+					       l_name);
+				} else
+#endif
+				{
+					/* Volume label or VFAT entry */
+					dentptr++;
+					continue;
+				}
+			} else if (dentptr->name[0] == 0) {
+				debug("RootDentname == NULL - %d\n", i);
+				if (dols == LS_ROOT) {
+					printf("\n%d file(s), %d dir(s)\n\n",
+						files, dirs);
+
+					ret=0;
+					goto BEACH;
+				}
+
+				ret=-1;
+				goto BEACH;
+			}
+#ifdef CONFIG_SUPPORT_VFAT
+			else if (dols == LS_ROOT &&
+				 mkcksum(dentptr->name,dentptr->ext) == prevcksum) {
+				dentptr++;
+				continue;
+			}
+#endif
+			get_name(dentptr, s_name);
+
+			if (dols == LS_ROOT) {
+				int isdir = (dentptr->attr & ATTR_DIR);
+				char dirc;
+				int doit = 0;
+
+				if (isdir) {
+					dirc = '/';
+					if (s_name[0] != 0) {
+						dirs++;
+						doit = 1;
+					}
+				} else {
+					dirc = ' ';
+					if (s_name[0] != 0) {
+						files++;
+						doit = 1;
+					}
+				}
+				if (doit) {
+					if (dirc == ' ') {
+						printf(" %8ld   %s%c\n",
+							(long)FAT2CPU32(dentptr->size),
+							s_name, dirc);
+					} else {
+						printf("            %s%c\n",
+							s_name, dirc);
+					}
+				}
+				dentptr++;
+				continue;
+			}
+
+			if (strcmp(fnamecopy, s_name)
+			    && strcmp(fnamecopy, l_name)) {
+				debug("RootMismatch: |%s|%s|\n", s_name,
+				       l_name);
+				dentptr++;
+				continue;
+			}
+
+			if (isdir && !(dentptr->attr & ATTR_DIR))
+			{
+				ret=-1;
+				goto BEACH;
+			}
+
+			debug("RootName: %s", s_name);
+			debug(", start: 0x%x", START(dentptr));
+			debug(", size:  0x%x %s\n",
+			       FAT2CPU32(dentptr->size),
+			       isdir ? "(DIR)" : "");
+
+			goto rootdir_done;	/* We got a match */
+		}
+		debug("END LOOP: j=%d   clust_size=%d\n", j,
+		       mydata->clust_size);
+
+		/*
+		 * On FAT32 we must fetch the FAT entries for the next
+		 * root directory clusters when a cluster has been
+		 * completely processed.
+		 */
+		if ((mydata->fatsize == 32) && (++j == mydata->clust_size)) {
+			int nxtsect;
+			int nxt_clust;
+
+			nxt_clust = get_fatent(mydata, root_cluster);
+
+			nxtsect = mydata->data_begin +
+				(nxt_clust * mydata->clust_size);
+
+			debug("END LOOP: sect=%d, root_clust=%d, "
+			      "n_sect=%d, n_clust=%d\n",
+			      cursect, root_cluster,
+			      nxtsect, nxt_clust);
+
+			root_cluster = nxt_clust;
+
+			cursect = nxtsect;
+			j = 0;
+		} else {
+			cursect++;
+		}
+	}
+rootdir_done:
+
+	firsttime = 1;
+
+	while (isdir) {
+		int startsect = mydata->data_begin
+			+ START(dentptr) * mydata->clust_size;
+		dir_entry dent;
+		char *nextname = NULL;
+
+		dent = *dentptr;
+		dentptr = &dent;
+
+		idx = dirdelim(subname);
+
+		if (idx >= 0) {
+			subname[idx] = '\0';
+			nextname = subname + idx + 1;
+			/* Handle multiple delimiters */
+			while (ISDIRDELIM(*nextname))
+				nextname++;
+			if (dols && *nextname == '\0')
+				firsttime = 0;
+		} else {
+			if (dols && firsttime) {
+				firsttime = 0;
+			} else {
+				isdir = 0;
+			}
+		}
+
+		if (get_dentfromdir(mydata, startsect, subname, dentptr,
+				     isdir ? 0 : dols) == NULL) {
+			if (dols && !isdir)
+			{
+				ret=0;
+				goto BEACH;
+			}
+
+			ret=-1;
+			goto BEACH;
+		}
+
+		if (idx >= 0) {
+			if (!(dentptr->attr & ATTR_DIR))
+			{
+				ret=-1;
+				goto BEACH;
+			}
+			subname = nextname;
+		}
+	}
+
+	ret = get_contents_fstart(mydata, dentptr, buffer, maxsize,fstart);
+	debug("Size: %d, got: %ld\n", FAT2CPU32(dentptr->size), ret);
+
+BEACH:
+	free(mydata->fatbuf);
+	return ret;
+}
+
+int do_fat_fsize (const char *filename, unsigned long *fsize)
+{
+	ALLOC_CACHE_ALIGN_BUFFER(unsigned char, mbuffer, MAX_CLUSTSIZE);
+	char fnamecopy[2048];
+	boot_sector bs;
+	volume_info volinfo;
+	fsdata datablock;
+	fsdata *mydata = &datablock;
+	dir_entry *dentptr;
+	__u16 prevcksum = 0xffff;
+	char *subname = "";
+	int cursect;
+	int idx, isdir = 0;
+	int files = 0, dirs = 0;
+	//long ret = 0;
+	int firsttime;
+	int root_cluster;
+	int j;
+	int dols;
+	int ret=0;
+
+	dols=LS_NO;
+
+
+	if (read_bootsectandvi(&bs, &volinfo, &mydata->fatsize)) {
+		debug("Error: reading boot sector\n");
+		return -1;
+	}
+
+	root_cluster = bs.root_cluster;
+
+	if (mydata->fatsize == 32)
+		mydata->fatlength = bs.fat32_length;
+	else
+		mydata->fatlength = bs.fat_length;
+
+	mydata->fat_sect = bs.reserved;
+
+	cursect = mydata->rootdir_sect
+		= mydata->fat_sect + mydata->fatlength * bs.fats;
+
+	mydata->clust_size = bs.cluster_size;
+
+	if (mydata->fatsize == 32) {
+		mydata->data_begin = mydata->rootdir_sect -
+					(mydata->clust_size * 2);
+	} else {
+		int rootdir_size;
+
+		rootdir_size = ((bs.dir_entries[1]  * (int)256 +
+				 bs.dir_entries[0]) *
+				 sizeof(dir_entry)) /
+				 mydata->sect_size;
+		mydata->data_begin = mydata->rootdir_sect +
+					rootdir_size -
+					(mydata->clust_size * 2);
+	}
+
+	mydata->fatbufnum = -1;
+	mydata->fatbuf = malloc(FATBUFSIZE);
+
+	if(NULL==mydata->fatbuf)
+	{
+		return -1;
+	}
+
+#ifdef CONFIG_SUPPORT_VFAT
+	debug("VFAT Support enabled\n");
+#endif
+	debug("FAT%d, fat_sect: %d, fatlength: %d\n",
+	       mydata->fatsize, mydata->fat_sect, mydata->fatlength);
+	debug("Rootdir begins at cluster: %d, sector: %d, offset: %x\n"
+	       "Data begins at: %d\n",
+	       root_cluster,
+	       mydata->rootdir_sect,
+	       mydata->rootdir_sect * mydata->sect_size, mydata->data_begin);
+	debug("Cluster size: %d\n", mydata->clust_size);
+
+	/* "cwd" is always the root... */
+	while (ISDIRDELIM(*filename))
+		filename++;
+
+	/* Make a copy of the filename and convert it to lowercase */
+	strcpy(fnamecopy, filename);
+	downcase(fnamecopy);
+
+	if (*fnamecopy == '\0') {
+		if (!dols)
+		{
+			ret=-1;
+			goto BEACH;
+		}
+
+		dols = LS_ROOT;
+	} else if ((idx = dirdelim(fnamecopy)) >= 0) {
+		isdir = 1;
+		fnamecopy[idx] = '\0';
+		subname = fnamecopy + idx + 1;
+
+		/* Handle multiple delimiters */
+		while (ISDIRDELIM(*subname))
+			subname++;
+	} else if (dols) {
+		isdir = 1;
+	}
+
+	j = 0;
+	while (1) {
+		int i;
+
+		debug("FAT read sect=%d, clust_size=%d, DIRENTSPERBLOCK=%d\n",
+			cursect, mydata->clust_size, DIRENTSPERBLOCK);
+
+		if (disk_read(cursect, mydata->clust_size, mbuffer) < 0) {
+			debug("Error: reading rootdir block\n");
+			ret=-1;
+			goto BEACH;
+		}
+
+		dentptr = (dir_entry *) mbuffer;
+
+		for (i = 0; i < DIRENTSPERBLOCK; i++) {
+			char s_name[14], l_name[256];
+
+			l_name[0] = '\0';
+			if ((dentptr->attr & ATTR_VOLUME)) {
+#ifdef CONFIG_SUPPORT_VFAT
+				if ((dentptr->attr & ATTR_VFAT) &&
+				    (dentptr->name[0] & LAST_LONG_ENTRY_MASK)) {
+					prevcksum =
+						((dir_slot *)dentptr)->alias_checksum;
+
+					get_vfatname(mydata, 0,
+						     mbuffer,
+						     dentptr, l_name);
+
+					if (dols == LS_ROOT) {
+						char dirc;
+						int doit = 0;
+						int isdir =
+							(dentptr->attr & ATTR_DIR);
+
+						if (isdir) {
+							dirs++;
+							dirc = '/';
+							doit = 1;
+						} else {
+							dirc = ' ';
+							if (l_name[0] != 0) {
+								files++;
+								doit = 1;
+							}
+						}
+						if (doit) {
+							if (dirc == ' ') {
+								printf(" %8ld   %s%c\n",
+									(long)FAT2CPU32(dentptr->size),
+									l_name,
+									dirc);
+							} else {
+								printf("            %s%c\n",
+									l_name,
+									dirc);
+							}
+						}
+						dentptr++;
+						continue;
+					}
+					debug("Rootvfatname: |%s|\n",
+					       l_name);
+				} else
+#endif
+				{
+					/* Volume label or VFAT entry */
+					dentptr++;
+					continue;
+				}
+			} else if (dentptr->name[0] == 0) {
+				debug("RootDentname == NULL - %d\n", i);
+				if (dols == LS_ROOT) {
+					printf("\n%d file(s), %d dir(s)\n\n",
+						files, dirs);
+					ret=0;
+					goto BEACH;
+				}
+				ret=-1;
+				goto BEACH;
+			}
+#ifdef CONFIG_SUPPORT_VFAT
+			else if (dols == LS_ROOT &&
+				 mkcksum(dentptr->name,dentptr->ext) == prevcksum) {
+				dentptr++;
+				continue;
+			}
+#endif
+			get_name(dentptr, s_name);
+
+			if (dols == LS_ROOT) {
+				int isdir = (dentptr->attr & ATTR_DIR);
+				char dirc;
+				int doit = 0;
+
+				if (isdir) {
+					dirc = '/';
+					if (s_name[0] != 0) {
+						dirs++;
+						doit = 1;
+					}
+				} else {
+					dirc = ' ';
+					if (s_name[0] != 0) {
+						files++;
+						doit = 1;
+					}
+				}
+				if (doit) {
+					if (dirc == ' ') {
+						printf(" %8ld   %s%c\n",
+							(long)FAT2CPU32(dentptr->size),
+							s_name, dirc);
+					} else {
+						printf("            %s%c\n",
+							s_name, dirc);
+					}
+				}
+				dentptr++;
+				continue;
+			}
+
+			if (strcmp(fnamecopy, s_name)
+			    && strcmp(fnamecopy, l_name)) {
+				debug("RootMismatch: |%s|%s|\n", s_name,
+				       l_name);
+				dentptr++;
+				continue;
+			}
+
+			if (isdir && !(dentptr->attr & ATTR_DIR))
+			{
+				ret=-1;
+				goto BEACH;
+			}
+
+			debug("RootName: %s", s_name);
+			debug(", start: 0x%x", START(dentptr));
+			debug(", size:  0x%x %s\n",
+			       FAT2CPU32(dentptr->size),
+			       isdir ? "(DIR)" : "");
+
+			goto rootdir_done;	/* We got a match */
+		}
+		debug("END LOOP: j=%d   clust_size=%d\n", j,
+		       mydata->clust_size);
+
+		/*
+		 * On FAT32 we must fetch the FAT entries for the next
+		 * root directory clusters when a cluster has been
+		 * completely processed.
+		 */
+		if ((mydata->fatsize == 32) && (++j == mydata->clust_size)) {
+			int nxtsect;
+			int nxt_clust;
+
+			nxt_clust = get_fatent(mydata, root_cluster);
+
+			nxtsect = mydata->data_begin +
+				(nxt_clust * mydata->clust_size);
+
+			debug("END LOOP: sect=%d, root_clust=%d, "
+			      "n_sect=%d, n_clust=%d\n",
+			      cursect, root_cluster,
+			      nxtsect, nxt_clust);
+
+			root_cluster = nxt_clust;
+
+			cursect = nxtsect;
+			j = 0;
+		} else {
+			cursect++;
+		}
+	}
+rootdir_done:
+
+	firsttime = 1;
+
+	while (isdir) {
+		int startsect = mydata->data_begin
+			+ START(dentptr) * mydata->clust_size;
+		dir_entry dent;
+		char *nextname = NULL;
+
+		dent = *dentptr;
+		dentptr = &dent;
+
+		idx = dirdelim(subname);
+
+		if (idx >= 0) {
+			subname[idx] = '\0';
+			nextname = subname + idx + 1;
+			/* Handle multiple delimiters */
+			while (ISDIRDELIM(*nextname))
+				nextname++;
+			if (dols && *nextname == '\0')
+				firsttime = 0;
+		} else {
+			if (dols && firsttime) {
+				firsttime = 0;
+			} else {
+				isdir = 0;
+			}
+		}
+
+		if (get_dentfromdir(mydata, startsect, subname, dentptr,
+				     isdir ? 0 : dols) == NULL) {
+			if (dols && !isdir)
+			{
+				ret=0;
+				goto BEACH;
+			}
+			ret=-1;
+			goto BEACH;
+		}
+
+		if (idx >= 0) {
+			if (!(dentptr->attr & ATTR_DIR))
+			{
+				ret=-1;
+				goto BEACH;
+			}
+			subname = nextname;
+		}
+	}
+
+	*fsize=FAT2CPU32(dentptr->size);
+
+BEACH:
+	free(mydata->fatbuf);
+	return ret;
+}
+
+#endif

@@ -48,4 +48,12 @@ source "drivers/dma/Kconfig"
 
 source "drivers/crypto/Kconfig"
 
+menuconfig MSTAR_DRIVERS
+    bool "MStar drivers"
+    default n
+    
+if MSTAR_DRIVERS
+source "drivers/mstar/Kconfig"
+endif
+
 endmenu

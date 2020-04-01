@@ -94,7 +94,9 @@ struct eth_device {
 	int  (*write_hwaddr) (struct eth_device *);
 	struct eth_device *next;
 	int index;
+	struct usb_device *udev;
 	void *priv;
+
 };
 
 extern int eth_initialize(bd_t *bis);	/* Initialize network subsystem */
@@ -421,7 +423,11 @@ extern int		NetRestartWrap;		/* Tried all network devices */
 enum proto_t {
 	BOOTP, RARP, ARP, TFTPGET, DHCP, PING, DNS, NFS, CDP, NETCONS, SNTP,
 	TFTPSRV, TFTPPUT, LINKLOCAL
+#ifdef CONFIG_CMD_NETUPGRADE
+	, NETUPGRADE, UPGRADESTATE
+#endif
 };
+
 
 /* from net/net.c */
 extern char	BootFile[128];			/* Boot File name */

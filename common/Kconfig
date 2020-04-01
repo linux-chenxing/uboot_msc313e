@@ -282,6 +282,11 @@ config CMD_LINK_LOCAL
 	help
 	  Acquire a network IP address using the link-local protocol
 
+config CMD_NETUPGRADE
+	bool "netupgrade"
+	help
+	  Auto Net upgrade on booting
+
 endmenu
 
 menu "Misc commands"

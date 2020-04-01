@@ -292,6 +292,7 @@ void init_part(block_dev_desc_t *dev_desc)
 
 #if defined(CONFIG_MAC_PARTITION) || \
 	defined(CONFIG_DOS_PARTITION) || \
+    defined(CONFIG_EMMC_PARTITION) || \
 	defined(CONFIG_ISO_PARTITION) || \
 	defined(CONFIG_AMIGA_PARTITION) || \
 	defined(CONFIG_EFI_PARTITION)
@@ -376,6 +377,14 @@ void print_part(block_dev_desc_t * dev_desc)
 		print_part_efi (dev_desc);
 		return;
 #endif
+
+#ifdef CONFIG_EMMC_PARTITION
+	case PART_TYPE_EMMC:
+		PRINTF ("## Testing for valid EMMC partition ##\n");
+		print_part_header ("EMMC", dev_desc);
+		print_part_emmc (dev_desc);
+		return;
+#endif
 	}
 	puts ("## Unknown partition table\n");
 }
@@ -436,6 +445,15 @@ int get_partition_info(block_dev_desc_t *dev_desc, int part,
 			return 0;
 		}
 		break;
+#endif
+
+#ifdef CONFIG_EMMC_PARTITION
+	case PART_TYPE_EMMC:
+	    if (get_partition_info_emmc(dev_desc,part,info) == 0) {
+	    	PRINTF ("## Valid EMMC partition found ##\n");
+	        return (0);
+	    }
+	    break;
 #endif
 	default:
 		break;

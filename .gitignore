@@ -83,3 +83,4 @@ GTAGS
 *.orig
 *~
 \#*#
+include/ms_version.h

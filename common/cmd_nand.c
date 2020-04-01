@@ -28,6 +28,11 @@
 #include <jffs2/jffs2.h>
 #include <nand.h>
 
+#include "../drivers/mstar/unfd/inc/common/drvNAND.h"
+#if IF_IP_VERIFY
+extern U32 drvNAND_IPVerify_Main(void);
+#endif
+
 #if defined(CONFIG_CMD_MTDPARTS)
 
 /* partition handling routines */
@@ -295,7 +300,7 @@ unsigned long nand_env_oob_offset;
 int do_nand_env_oob(cmd_tbl_t *cmdtp, int argc, char *const argv[])
 {
 	int ret;
-	uint32_t oob_buf[ENV_OFFSET_SIZE/sizeof(uint32_t)];
+//	uint32_t oob_buf[ENV_OFFSET_SIZE/sizeof(uint32_t)];
 	nand_info_t *nand = &nand_info[0];
 	char *cmd = argv[1];
 
@@ -313,65 +318,67 @@ int do_nand_env_oob(cmd_tbl_t *cmdtp, int argc, char *const argv[])
 
 		printf("0x%08lx\n", nand_env_oob_offset);
 	} else if (!strcmp(cmd, "set")) {
-		loff_t addr;
-		loff_t maxsize;
-		struct mtd_oob_ops ops;
-		int idx = 0;
-
-		if (argc < 3)
-			goto usage;
-
-		/* We don't care about size, or maxsize. */
-		if (arg_off(argv[2], &idx, &addr, &maxsize, &maxsize)) {
-			puts("Offset or partition name expected\n");
-			return 1;
-		}
-
-		if (idx != 0) {
-			puts("Partition not on first NAND device\n");
-			return 1;
-		}
-
-		if (nand->oobavail < ENV_OFFSET_SIZE) {
-			printf("Insufficient available OOB bytes:\n"
-			       "%d OOB bytes available but %d required for "
-			       "env.oob support\n",
-			       nand->oobavail, ENV_OFFSET_SIZE);
-			return 1;
-		}
-
-		if ((addr & (nand->erasesize - 1)) != 0) {
-			printf("Environment offset must be block-aligned\n");
-			return 1;
-		}
-
-		ops.datbuf = NULL;
-		ops.mode = MTD_OOB_AUTO;
-		ops.ooboffs = 0;
-		ops.ooblen = ENV_OFFSET_SIZE;
-		ops.oobbuf = (void *) oob_buf;
-
-		oob_buf[0] = ENV_OOB_MARKER;
-		oob_buf[1] = addr / nand->erasesize;
-
-		ret = nand->write_oob(nand, ENV_OFFSET_SIZE, &ops);
-		if (ret) {
-			printf("Error writing OOB block 0\n");
-			return ret;
-		}
-
-		ret = get_nand_env_oob(nand, &nand_env_oob_offset);
-		if (ret) {
-			printf("Error reading env offset in OOB\n");
-			return ret;
-		}
-
-		if (addr != nand_env_oob_offset) {
-			printf("Verification of env offset in OOB failed: "
-			       "0x%08llx expected but got 0x%08lx\n",
-			       (unsigned long long)addr, nand_env_oob_offset);
-			return 1;
-		}
+//		loff_t addr;
+//		loff_t maxsize;
+//		struct mtd_oob_ops ops;
+//		int idx = 0;
+//
+//		if (argc < 3)
+//			goto usage;
+//
+//		/* We don't care about size, or maxsize. */
+//		if (arg_off(argv[2], &idx, &addr, &maxsize, &maxsize)) {
+//			puts("Offset or partition name expected\n");
+//			return 1;
+//		}
+//
+//		if (idx != 0) {
+//			puts("Partition not on first NAND device\n");
+//			return 1;
+//		}
+//
+//		if (nand->oobavail < ENV_OFFSET_SIZE) {
+//			printf("Insufficient available OOB bytes:\n"
+//			       "%d OOB bytes available but %d required for "
+//			       "env.oob support\n",
+//			       nand->oobavail, ENV_OFFSET_SIZE);
+//			return 1;
+//		}
+//
+//		if ((addr & (nand->erasesize - 1)) != 0) {
+//			printf("Environment offset must be block-aligned\n");
+//			return 1;
+//		}
+//
+//		ops.datbuf = NULL;
+//		ops.mode = MTD_OOB_AUTO;
+//		ops.ooboffs = 0;
+//		ops.ooblen = ENV_OFFSET_SIZE;
+//		ops.oobbuf = (void *) oob_buf;
+//
+//		oob_buf[0] = ENV_OOB_MARKER;
+//		oob_buf[1] = addr / nand->erasesize;
+//
+//		ret = nand->write_oob(nand, ENV_OFFSET_SIZE, &ops);
+//		if (ret) {
+//			printf("Error writing OOB block 0\n");
+//			return ret;
+//		}
+//
+//		ret = get_nand_env_oob(nand, &nand_env_oob_offset);
+//		if (ret) {
+//			printf("Error reading env offset in OOB\n");
+//			return ret;
+//		}
+//
+//		if (addr != nand_env_oob_offset) {
+//			printf("Verification of env offset in OOB failed: "
+//			       "0x%08llx expected but got 0x%08lx\n",
+//			       (unsigned long long)addr, nand_env_oob_offset);
+//			return 1;
+//		}
+		printf("nand env.oob set is not supportted!!\n");
+		return 1;
 	} else {
 		goto usage;
 	}
@@ -828,6 +835,13 @@ static int do_nand(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			     "write and erase will probably fail\n");
 			return 1;
 		}
+		return 0;
+	}
+#endif
+
+#if IF_IP_VERIFY
+	if (strncmp(cmd, "ipverify", 8) == 0) {
+		drvNAND_IPVerify_Main();
 		return 0;
 	}
 #endif

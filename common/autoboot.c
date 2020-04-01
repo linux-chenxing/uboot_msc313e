@@ -34,7 +34,7 @@ static int stored_bootdelay;
 static int abortboot_keyed(int bootdelay)
 {
 	int abort = 0;
-	uint64_t etime = endtick(bootdelay);
+	uint64_t etime = 2;//endtick(bootdelay);
 	struct {
 		char *str;
 		u_int len;
@@ -42,9 +42,9 @@ static int abortboot_keyed(int bootdelay)
 	}
 	delaykey[] = {
 		{ .str = getenv("bootdelaykey"),  .retry = 1 },
-		{ .str = getenv("bootdelaykey2"), .retry = 1 },
-		{ .str = getenv("bootstopkey"),   .retry = 0 },
-		{ .str = getenv("bootstopkey2"),  .retry = 0 },
+//		{ .str = getenv("bootdelaykey2"), .retry = 1 },
+//		{ .str = getenv("bootstopkey"),   .retry = 0 },
+//		{ .str = getenv("bootstopkey2"),  .retry = 0 },
 	};
 
 	char presskey[MAX_DELAY_STOP_STR];
@@ -65,6 +65,7 @@ static int abortboot_keyed(int bootdelay)
 	if (delaykey[0].str == NULL)
 		delaykey[0].str = CONFIG_AUTOBOOT_DELAY_STR;
 #  endif
+#if 0
 #  ifdef CONFIG_AUTOBOOT_DELAY_STR2
 	if (delaykey[1].str == NULL)
 		delaykey[1].str = CONFIG_AUTOBOOT_DELAY_STR2;
@@ -77,7 +78,7 @@ static int abortboot_keyed(int bootdelay)
 	if (delaykey[3].str == NULL)
 		delaykey[3].str = CONFIG_AUTOBOOT_STOP_STR2;
 #  endif
-
+#endif
 	for (i = 0; i < sizeof(delaykey) / sizeof(delaykey[0]); i++) {
 		delaykey[i].len = delaykey[i].str == NULL ?
 				    0 : strlen(delaykey[i].str);
@@ -123,16 +124,22 @@ static int abortboot_keyed(int bootdelay)
 				abort = 1;
 			}
 		}
-	} while (!abort && get_ticks() <= etime);
+		etime--;
+	} while (!abort && etime);
 
+#if 0// if DEBUG_BOOTKEYS
 	if (!abort)
 		debug_bootkeys("key timeout\n");
+
+#endif
 
 #ifdef CONFIG_SILENT_CONSOLE
 	if (abort)
 		gd->flags &= ~GD_FLG_SILENT;
 #endif
-
+	if (tstc()) {
+	    (void) getc();  /* consume input	*/
+	}
 	return abort;
 }
 
@@ -287,12 +294,23 @@ void autoboot_command(const char *s)
 		int prev = disable_ctrlc(1);	/* disable Control C checking */
 #endif
 
+#ifdef CONFIG_CMD_NETUPGRADE
+		run_command("net_upgrade", 0);
+#endif
+
+		dcache_enable();
+		icache_enable();
+
 		run_command_list(s, -1, 0);
+
+		dcache_disable();
+		icache_disable();
 
 #if defined(CONFIG_AUTOBOOT_KEYED) && !defined(CONFIG_AUTOBOOT_KEYED_CTRLC)
 		disable_ctrlc(prev);	/* restore Control C checking */
 #endif
 	}
+
 
 #ifdef CONFIG_MENUKEY
 	if (menukey == CONFIG_MENUKEY) {

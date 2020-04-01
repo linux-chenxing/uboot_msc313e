@@ -174,7 +174,8 @@ obj-$(CONFIG_CMD_LZMADEC) += cmd_lzmadec.o
 endif
 ifdef CONFIG_CMD_USB
 obj-y += cmd_usb.o
-obj-y += usb.o usb_hub.o
+obj-y += usb.o 
+#obj-y +=usb_hub.o
 obj-$(CONFIG_USB_STORAGE) += usb_storage.o
 endif
 obj-$(CONFIG_CMD_FASTBOOT) += cmd_fastboot.o
@@ -271,5 +272,22 @@ obj-y += command.o
 obj-y += s_record.o
 obj-y += xyzModem.o
 obj-y += cmd_disk.o
+
+obj-y += cmd_mstar.o cmd_osd.o
+obj-$(CONFIG_MS_SDMMC) += cmd_sdmmc_ipv.o
+
+ifdef CONFIG_MS_NAND 
+CFLAGS_env_nand.o  += -I$(srctree)/drivers/mstar/unfd/inc/api
+CFLAGS_env_nand.o  += -I$(srctree)/drivers/mstar/unfd/inc/common
+CFLAGS_env_nand.o  += -I$(srctree)/drivers/mstar/unfd/inc/config
+endif
+
+ifdef CONFIG_MS_SPINAND
+CFLAGS_env_nand.o  += -I$(srctree)/drivers/mstar/spinand/inc/common
+CFLAGS_env_nand.o  += -I$(srctree)/drivers/mstar/spinand/inc/config
+endif
+
+CFLAGS_cmd_mstar.o += -I$(srctree)
+CFLAGS_env_sf.o += -I$(srctree)
 
 CFLAGS_env_embedded.o := -Wa,--no-warn -DENV_CRC=$(shell tools/envcrc 2>/dev/null)

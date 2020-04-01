@@ -99,7 +99,7 @@ typedef struct {
 } umass_bbb_csw_t;
 #define UMASS_BBB_CSW_SIZE	13
 
-#define USB_MAX_STOR_DEV 5
+//#define USB_MAX_STOR_DEV 5
 static int usb_max_devs; /* number of highest available usb device */
 
 static block_dev_desc_t usb_dev_desc[USB_MAX_STOR_DEV];
@@ -131,6 +131,7 @@ struct us_data {
 	trans_reset	transport_reset;	/* reset routine */
 	trans_cmnd	transport;		/* transport routine */
 };
+#define CONFIG_USB_EHCI
 
 #ifdef CONFIG_USB_EHCI
 /*
@@ -213,6 +214,17 @@ static unsigned int usb_get_max_lun(struct us_data *us)
  * to the user if mode = 1
  * returns current device or -1 if no
  */
+ extern int UsbPortSelect;
+extern void USB_Bulk_Init(struct usb_device *dev);
+#if defined(ENABLE_SECOND_EHC)
+extern void USB_Bulk_Init2(struct usb_device *dev);
+#endif
+#if defined(ENABLE_THIRD_EHC)
+extern void USB_Bulk_Init3(struct usb_device *dev);
+#endif
+#if defined(ENABLE_FOURTH_EHC)
+extern void USB_Bulk_Init4(struct usb_device *dev);
+#endif
 int usb_stor_scan(int mode)
 {
 	unsigned char i;
@@ -245,6 +257,26 @@ int usb_stor_scan(int mode)
 			/* OK, it's a storage device.  Iterate over its LUNs
 			 * and populate `usb_dev_desc'.
 			 */
+			if (UsbPortSelect==0)
+			{
+			#if defined(ENABLE_FIRST_EHC)
+				USB_Bulk_Init(dev);              //init bulk structure,yuwen
+			#else
+				printf("USB0 is not enabled!!\n");
+			#endif
+			}
+			#if defined(ENABLE_SECOND_EHC)
+			else if (UsbPortSelect==1)
+				USB_Bulk_Init2(dev);
+			#endif
+			#if defined(ENABLE_THIRD_EHC)
+			else if (UsbPortSelect==2)
+				USB_Bulk_Init3(dev);
+			#endif
+			#if defined(ENABLE_FOURTH_EHC)
+			else if (UsbPortSelect==3)
+				USB_Bulk_Init4(dev);
+			#endif					
 			int lun, max_lun, start = usb_max_devs;
 
 			max_lun = usb_get_max_lun(&usb_stor[usb_max_devs]);

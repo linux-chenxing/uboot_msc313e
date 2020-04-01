@@ -89,7 +89,7 @@ static void announce_and_cleanup(int fake)
 static void setup_start_tag (bd_t *bd)
 {
 	params = (struct tag *)bd->bi_boot_params;
-
+    printf("atags:0x%08X\n",(unsigned int)params);
 	params->hdr.tag = ATAG_CORE;
 	params->hdr.size = tag_size (tag_core);
 
@@ -213,7 +213,7 @@ static void boot_prep_linux(bootm_headers_t *images)
 		}
 #endif
 	} else if (BOOTM_ENABLE_TAGS) {
-		debug("using: ATAGS\n");
+		debug("using: ATAGSS\n");
 		setup_start_tag(gd->bd);
 		if (BOOTM_ENABLE_SERIAL_TAG)
 			setup_serial_tag(&params);
