@@ -245,6 +245,57 @@ static int get_partition_info_extended (block_dev_desc_t *dev_desc, int ext_part
 		}
 	}
 
+	printf("part_num=%d\n",part_num);
+	if(1==which_part && (1!=part_num))
+	{
+		printf("For 1st partition, skipping fdisk part# assignment rule and try again...\n");
+		/* Print all primary/logical partitions */
+		pt = (dos_partition_t *) (buffer + DOS_PART_TBL_OFFSET);
+		for (i = 0; i < 4; i++, pt++)
+		{
+			/*
+			 * fdisk does not show the extended partitions that
+			 * are not in the MBR
+			 */
+			if (((pt->boot_ind & ~0x80) == 0) &&
+				(pt->sys_ind != 0) &&
+				(is_extended(pt->sys_ind) == 0)) {
+				info->blksz = 512;
+				info->start = ext_part_sector + le32_to_int (pt->start4);
+				info->size  = le32_to_int (pt->size4);
+				switch(dev_desc->if_type) {
+					case IF_TYPE_IDE:
+					case IF_TYPE_SATA:
+					case IF_TYPE_ATAPI:
+						sprintf ((char *)info->name, "hd%c%d",
+							'a' + dev_desc->dev, part_num);
+						break;
+					case IF_TYPE_SCSI:
+						sprintf ((char *)info->name, "sd%c%d",
+							'a' + dev_desc->dev, part_num);
+						break;
+					case IF_TYPE_USB:
+						sprintf ((char *)info->name, "usbd%c%d",
+							'a' + dev_desc->dev, part_num);
+						break;
+					case IF_TYPE_DOC:
+						sprintf ((char *)info->name, "docd%c%d",
+							'a' + dev_desc->dev, part_num);
+						break;
+					default:
+						sprintf ((char *)info->name, "xx%c%d",
+							'a' + dev_desc->dev, part_num);
+						break;
+				}
+				/* sprintf(info->type, "%d, pt->sys_ind); */
+				sprintf ((char *)info->type, "U-Boot");
+				return 0;
+			}
+
+		}
+
+	}
+
 	/* Follows the extended partitions */
 	pt = (dos_partition_t *) (buffer + DOS_PART_TBL_OFFSET);
 	for (i = 0; i < 4; i++, pt++) {

@@ -52,6 +52,7 @@ static void run_preboot_environment_command(void)
 #endif /* CONFIG_PREBOOT */
 }
 
+
 /* We come here after U-Boot is initialised and ready to process commands */
 void main_loop(void)
 {
@@ -73,6 +74,11 @@ void main_loop(void)
 	cli_init();
 
 	run_preboot_environment_command();
+
+
+#ifdef CONFIG_AUTO_UPGRADE_SD
+		run_command("sdupgrade", 0);
+#endif
 
 #if defined(CONFIG_UPDATE_TFTP)
 	update_tftp(0UL);

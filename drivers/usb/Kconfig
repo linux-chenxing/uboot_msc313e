@@ -44,3 +44,4 @@ config USB_STORAGE
 	  board's USB port.
 
 endif
+

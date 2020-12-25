@@ -69,6 +69,7 @@ typedef struct block_dev_desc {
 #define PART_TYPE_ISO		0x03
 #define PART_TYPE_AMIGA		0x04
 #define PART_TYPE_EFI		0x05
+#define PART_TYPE_EMMC      0x06
 
 /*
  * Type string for U-Boot bootable partitions
@@ -154,6 +155,16 @@ int get_partition_info_mac (block_dev_desc_t * dev_desc, int part, disk_partitio
 void print_part_mac (block_dev_desc_t *dev_desc);
 int   test_part_mac (block_dev_desc_t *dev_desc);
 #endif
+
+#ifdef CONFIG_EMMC_PARTITION
+/* disk/part_emmc.c */
+extern int  test_part_emmc (block_dev_desc_t *dev_desc);
+extern int  get_partition_info_emmc (block_dev_desc_t * dev_desc, int part, disk_partition_t *info);
+extern void print_part_emmc (block_dev_desc_t *dev_desc);
+extern int  add_emmc_partitions(block_dev_desc_t *dev_desc, disk_partition_t *info);
+extern int  remove_emmc_partitions(block_dev_desc_t *dev_desc, disk_partition_t *info);
+#endif
+
 
 #ifdef CONFIG_DOS_PARTITION
 /* disk/part_dos.c */

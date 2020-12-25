@@ -114,6 +114,7 @@ static int init_func_watchdog_init(void)
 	defined(CONFIG_SH))
 	hw_watchdog_init();
 # endif
+	hw_watchdog_init();
 	puts("       Watchdog enabled\n");
 	WATCHDOG_RESET();
 
@@ -213,7 +214,7 @@ static int show_dram_config(void)
 	size = gd->ram_size;
 #endif
 
-	print_size(size, "");
+	//print_size(size, "");
 	board_add_ram_info(0);
 	putc('\n');
 

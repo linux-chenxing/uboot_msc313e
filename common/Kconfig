@@ -186,6 +186,11 @@ config CMD_I2C
 	help
 	  I2C support.
 
+config CMD_BOOTLOGO
+	bool "bootlogo"
+	help
+	  bootlog support.
+
 config CMD_USB
 	bool "usb"
 	help
@@ -272,16 +277,42 @@ config CMD_DNS
 	help
 	  Lookup the IP of a hostname
 
-config CMD_DNS
-	bool "dns"
-	help
-	  Lookup the IP of a hostname
-
 config CMD_LINK_LOCAL
 	bool "linklocal"
 	help
 	  Acquire a network IP address using the link-local protocol
 
+config CMD_NETUPGRADE
+	bool "netupgrade"
+	help
+	  Auto Net upgrade on booting
+
+endmenu
+
+menu "USB commands"
+config CMD_FASTBOOT
+        bool "fastboot"
+        help
+          This enables the command fastboot which enables the Android
+          fastboot mode for the platform USB device. Fastboot is a USB
+          protocol for downloading images, flashing and device control
+          used on Android devices.
+config CMD_USBSTART
+        bool "usbstart"
+        help
+          Hook usb ether to ETHERNET
+config USB_GADGET_MSB250X
+	def_bool y if CMD_FASTBOOT || CMD_USBSTART
+config USB_GADGET
+        def_bool y if USB_GADGET_MSB250X
+config USBDOWNLOAD_GADGET
+        def_bool y if CMD_FASTBOOT
+config USB_ETHER
+	def_bool y if CMD_USBSTART
+config USB_ETH_CDC
+	def_bool y if USB_ETHER
+config USB_ETH_RNDIS
+	def_bool y if USB_ETHER
 endmenu
 
 menu "Misc commands"
@@ -310,7 +341,23 @@ config CMD_SETGETDCR
 	  setdcr - Set an AMCC PPC 4xx DCR's value
 	  getidcr - Get a register value via indirect DCR addressing
 	  setidcr - Set a register value via indirect DCR addressing
+config CMD_SIGAUTH
+	bool "sigauth"
+	help
+	  This enables the command sigauth which only authenticate image 
+	  with signature.
+config SRAM_DUMMY_ACCESS_RSA
+	bool "dummy access RSA"
+	depends on CMD_SIGAUTH
 
+config CMD_CUSTOMER_INIT
+    bool 'SSTAR CUSTOMER INIT'
 endmenu
+endmenu
+config XZ
+	bool "XZ"
 
-endmenu
+config MZ
+	bool "MZ"
+config SILENT_CONSOLE
+	bool "SILENT_CONSOLE"

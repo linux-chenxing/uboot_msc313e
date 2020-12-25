@@ -23,6 +23,19 @@
 #include <search.h>
 #include <errno.h>
 
+
+#ifdef CONFIG_MSTAR_ENV_NAND_OFFSET
+    #ifdef CONFIG_MS_SPINAND
+        #include "drvSPINAND.h"
+        #include "spinand.h"
+        extern int MDrv_SPINAND_GetPartOffset(U16 u16_PartType, U32* u32_Offset);
+    #endif
+    #ifdef CONFIG_MS_NAND
+        #include "drvNAND.h"
+        extern U32 drvNAND_GetPartOffset(U16 u16_PartType, U32* u32_Offset);
+    #endif
+#endif
+
 #if defined(CONFIG_CMD_SAVEENV) && defined(CONFIG_CMD_NAND)
 #define CMD_SAVEENV
 #elif defined(CONFIG_ENV_OFFSET_REDUND)
@@ -38,14 +51,26 @@
 #define CONFIG_ENV_RANGE	CONFIG_ENV_SIZE
 #endif
 
+#if (defined(CONFIG_MS_NAND) && defined(CONFIG_MS_EMMC))
+char *nand_env_name_spec = "NAND";
+#else
 char *env_name_spec = "NAND";
+#endif
+
+#if defined(CONFIG_MS_NAND) || defined(CONFIG_MS_SPINAND)
+U32 ms_nand_env_offset = 0;
+#endif
 
 #if defined(ENV_IS_EMBEDDED)
 env_t *env_ptr = &environment;
 #elif defined(CONFIG_NAND_ENV_DST)
 env_t *env_ptr = (env_t *)CONFIG_NAND_ENV_DST;
 #else /* ! ENV_IS_EMBEDDED */
+#if (defined(CONFIG_MS_NAND) && defined(CONFIG_MS_EMMC))
+extern env_t *env_ptr;
+#else
 env_t *env_ptr;
+#endif
 #endif /* ENV_IS_EMBEDDED */
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -62,7 +87,11 @@ DECLARE_GLOBAL_DATA_PTR;
  * This way the SPL loads not only the U-Boot image from NAND but
  * also the environment.
  */
+#if (defined(CONFIG_MS_NAND) && defined(CONFIG_MS_EMMC))
+int nand_env_init(void)
+#else
 int env_init(void)
+#endif
 {
 #if defined(ENV_IS_EMBEDDED) || defined(CONFIG_NAND_ENV_DST)
 	int crc1_ok = 0, crc2_ok = 0;
@@ -154,7 +183,7 @@ static int writeenv(size_t offset, u_char *buf)
 
 struct env_location {
 	const char *name;
-	const nand_erase_options_t erase_opts;
+	nand_erase_options_t erase_opts;
 };
 
 static int erase_and_write_env(const struct env_location *location,
@@ -177,18 +206,25 @@ static int erase_and_write_env(const struct env_location *location,
 static unsigned char env_flags;
 #endif
 
+#if (defined(CONFIG_MS_NAND) && defined(CONFIG_MS_EMMC))
+int nand_saveenv(void)
+#else
 int saveenv(void)
+#endif
 {
 	int	ret = 0;
 	ALLOC_CACHE_ALIGN_BUFFER(env_t, env_new, 1);
 	int	env_idx = 0;
-	static const struct env_location location[] = {
+	static struct env_location location[] = {
 		{
 			.name = "NAND",
+#ifndef	CONFIG_MSTAR_ENV_NAND_OFFSET
 			.erase_opts = {
 				.length = CONFIG_ENV_RANGE,
-				.offset = CONFIG_ENV_OFFSET,
+				.offset = CONFIG_MSTAR_ENV_NAND_OFFSET,
+
 			},
+#endif
 		},
 #ifdef CONFIG_ENV_OFFSET_REDUND
 		{
@@ -201,6 +237,24 @@ int saveenv(void)
 #endif
 	};
 
+#ifdef CONFIG_MSTAR_ENV_NAND_OFFSET
+//	if(ms_nand_env_offset == 0)
+//	{
+        #ifdef CONFIG_MS_SPINAND
+            if(MDrv_SPINAND_GetPartOffset(UNFD_PART_ENV, &ms_nand_env_offset) != 0)
+        #endif
+        #ifdef CONFIG_MS_NAND
+            if(drvNAND_GetPartOffset(UNFD_PART_ENV,&ms_nand_env_offset)!=UNFD_ST_SUCCESS)
+        #endif
+            {
+                printf("ERROR!! get NAND CONFIG_ENV_OFFSET failed!!\n");
+                ms_nand_env_offset = 0;
+                return -1;
+            }
+//	}
+	location[0].erase_opts.length=CONFIG_ENV_RANGE;
+	location[0].erase_opts.offset=CONFIG_MSTAR_ENV_NAND_OFFSET;
+#endif
 
 	if (CONFIG_ENV_RANGE < CONFIG_ENV_SIZE)
 		return 1;
@@ -239,7 +293,6 @@ static int readenv(size_t offset, u_char *buf)
 	size_t amount_loaded = 0;
 	size_t blocksize, len;
 	u_char *char_ptr;
-
 	blocksize = nand_info[0].erasesize;
 	if (!blocksize)
 		return 1;
@@ -270,6 +323,14 @@ static int readenv(size_t offset, u_char *buf)
 #ifdef CONFIG_ENV_OFFSET_OOB
 int get_nand_env_oob(nand_info_t *nand, unsigned long *result)
 {
+#if defined(CONFIG_MSTAR_ENV_OFFSET)
+	U32 offset;
+	extern U32 drvNAND_GetPartOffset(U16 u16_PartType, U32* u32_Offset);
+	if(drvNAND_GetPartOffset(UNFD_PART_ENV,&offset)==UNFD_ST_SUCCESS)
+	{
+		*result=offset;
+	}
+#else
 	struct mtd_oob_ops ops;
 	uint32_t oob_buf[ENV_OFFSET_SIZE / sizeof(uint32_t)];
 	int ret;
@@ -294,7 +355,7 @@ int get_nand_env_oob(nand_info_t *nand, unsigned long *result)
 		printf("No dynamic environment marker in OOB block 0\n");
 		return -ENOENT;
 	}
-
+#endif
 	return 0;
 }
 #endif
@@ -372,7 +433,11 @@ done:
  * device i.e., nand_dev_desc + 0. This is also the behaviour using
  * the new NAND code.
  */
+#if (defined(CONFIG_MS_NAND) && defined(CONFIG_MS_EMMC) && defined(CONFIG_MS_SPINAND))
+void nand_env_relocate_spec(void)
+#else
 void env_relocate_spec(void)
+#endif
 {
 #if !defined(ENV_IS_EMBEDDED)
 	int ret;
@@ -392,9 +457,23 @@ void env_relocate_spec(void)
 	}
 #endif
 
-	ret = readenv(CONFIG_ENV_OFFSET, (u_char *)buf);
+#ifdef CONFIG_MS_SPINAND
+    if(MDrv_SPINAND_GetPartOffset(UNFD_PART_ENV, &ms_nand_env_offset) != 0)
+#endif
+#ifdef CONFIG_MS_NAND
+	if(drvNAND_GetPartOffset(UNFD_PART_ENV,&ms_nand_env_offset)!=UNFD_ST_SUCCESS)
+#endif
+    {
+        printf("ERROR!! get NAND CONFIG_ENV_OFFSET failed!!\n");
+        set_default_env("!readenv() failed");
+		ms_nand_env_offset = 0;
+		return;
+    }
+
+	ret = readenv(CONFIG_MSTAR_ENV_NAND_OFFSET, (u_char *)buf);
 	if (ret) {
 		set_default_env("!readenv() failed");
+		ms_nand_env_offset = 0;
 		return;
 	}
 

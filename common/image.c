@@ -154,6 +154,8 @@ static const table_entry_t uimage_comp[] = {
 	{	IH_COMP_GZIP,	"gzip",		"gzip compressed",	},
 	{	IH_COMP_LZMA,	"lzma",		"lzma compressed",	},
 	{	IH_COMP_LZO,	"lzo",		"lzo compressed",	},
+	{	IH_COMP_MZ,	"mz",		"mz compressed",	},
+	{   IH_COMP_XIP, "XIP",       "XIP",    },
 	{	-1,		"",		"",			},
 };
 
