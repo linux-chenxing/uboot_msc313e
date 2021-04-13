@@ -81,19 +81,3 @@ if [ "${chip}" = "i6b0" ]; then
   cp $uboot_dir/u-boot_spinand.mz.img.bin $alkaid_dir/project/board/${chip}/boot/spinand/uboot
 fi
 
-if [ "${chip}" = "i2m" ]; then
-  declare -x PATH="/tools/toolchain/gcc-arm-8.2-2018.08-x86_64-arm-linux-gnueabihf/bin":$PATH
-  declare -x ARCH="arm"
-  declare -x CROSS_COMPILE="arm-linux-gnueabihf-"
-  make infinity2m_spinand_defconfig
-  make clean; make
-  if [ -d $alkaid_dir/project/board/${chip}/boot/nor/uboot ]; then
-    cp $uboot_dir/u-boot_spinand.xz.img.bin $alkaid_dir/project/board/${chip}/boot/nor/uboot
-  fi
-
-  make infinity2m_defconfig
-  make clean; make
-  if [ -d $alkaid_dir/project/board/${chip}/boot/spinand/uboot ]; then
-    cp $uboot_dir/u-boot.xz.img.bin $alkaid_dir/project/board/${chip}/boot/spinand/uboot
-  fi
-fi

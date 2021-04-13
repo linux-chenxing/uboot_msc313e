@@ -1018,9 +1018,15 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num,
 	}
 
 	if (ubi->autoresize_vol_id != -1) {
+#if 0
+		/*
+		 * wireless-tag
+		 * skip auto resize, version ti too low, will cause kernel can't find rootfs
+		 */
 		err = autoresize(ubi, ubi->autoresize_vol_id);
 		if (err)
 			goto out_detach;
+#endif
 	}
 
 	err = uif_init(ubi, &ref);

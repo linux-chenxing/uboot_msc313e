@@ -177,7 +177,6 @@ typedef struct
 //  Variable
 //-------------------------------------------------------------------------------------------------
 
-
 #define BOOTFB_DBG_LEVEL_INFO    0x01
 #define BOOTFB_DBG_LEVEL_ERR     0x02
 
@@ -247,6 +246,14 @@ DisplayLogoTimingConfig_t stTimingTable[BOOTLOGO_TIMING_NUM] =
     {   E_MHAL_DISP_OUTPUT_USER,
         48, 46,  4,  23, 98, 27, 800, 480, 928, 525, 43},
 };
+
+#if defined(CONFIG_SSTAR_RGN)
+    static u32 gu32FrameBuffer = 0;
+    static u32 gu32DispWidth = 0;
+    static u32 gu32DispHeight = 0;
+    static u32 gu32Rotate = 0;
+    static u32 gu32GOPorMOP = 0;
+#endif
 
 #if PNL_TEST_MD_EN
 MhalPnlParamConfig_t stTtl00x480Param =
@@ -1441,7 +1448,7 @@ static void _BootJpdArgbCtrl(u32 u32InBufSzie, u32 u32InBuf, u32 u32OutBufSize, 
     free(linebuffer);
 #endif
 }
-#else
+#endif
 static void _BootJpdYuvCtrl(u32 u32InBufSzie, u32 u32InBuf, u32 u32OutBufSize, u32 u32OutBuf, u16 *pu16OutWidth, u16 *pu16OutHeight, PIC_ROTATION_e eRot)
 {
 #if defined(CONFIG_SSTAR_JPD)
@@ -1560,7 +1567,7 @@ static void _BootJpdYuvCtrl(u32 u32InBufSzie, u32 u32InBuf, u32 u32OutBufSize, u
     free(pu8BmpBuffer);
 #endif
 }
-#endif
+
 void _BootDispCtrl(SS_SHEADER_DispPnl_u *puDispPnlCfg, SS_SHEADER_DispInfo_t *pstDispInfo, u32 u32Shift,
                         SS_SHEADER_PictureAspectRatio_e eAspectRatio, u32 u32DstX, u32 u32DstY,
                         u16 u16ImgWidth, u16 u16ImgHeight)
@@ -1721,7 +1728,54 @@ void _BootDispCtrl(SS_SHEADER_DispPnl_u *puDispPnlCfg, SS_SHEADER_DispInfo_t *ps
     MHAL_DISP_InputPortSetAttr(pInputPortCtx, &stInputAttr);
     MHAL_DISP_InputPortFlip(pInputPortCtx, &stVideoFrameBuffer);
     MHAL_DISP_InputPortEnable(pInputPortCtx, TRUE);
+#else
+    if (0 == gu32GOPorMOP)
+    {
+        //BOOTLOGO_DBG(BOOTLOGO_DBG_LEVEL_INFO, "CONFIG_SSTAR_RGN enable, func:%s, line:%d\n", __FUNCTION__,__LINE__);
+        MHAL_DISP_VideoFrameData_t stVideoFrameBuffer;
+        MHAL_DISP_InputPortAttr_t stInputAttr;
 
+        memset(&stInputAttr, 0, sizeof(MHAL_DISP_InputPortAttr_t));
+        memset(&stVideoFrameBuffer, 0, sizeof(MHAL_DISP_VideoFrameData_t));    
+        stInputAttr.u16SrcWidth = min(u16DispOutWidht, u16ImgWidth);
+        stInputAttr.u16SrcHeight = min(u16DispOutHeight, u16ImgHeight);
+        switch (eAspectRatio)
+        {
+            case EN_PICTURE_DISPLAY_ZOOM:
+            {
+                stInputAttr.stDispWin.u16X = 0;
+                stInputAttr.stDispWin.u16Y = 0;
+                stInputAttr.stDispWin.u16Width = u16DispOutWidht;
+                stInputAttr.stDispWin.u16Height = u16DispOutHeight;
+            }
+            break;
+            case EN_PICTURE_DISPLAY_CENTER:
+            {
+                stInputAttr.stDispWin.u16X = (u16DispOutWidht - stInputAttr.u16SrcWidth) / 2;
+                stInputAttr.stDispWin.u16Y = (u16DispOutHeight - stInputAttr.u16SrcHeight) / 2;
+                stInputAttr.stDispWin.u16Width = stInputAttr.u16SrcWidth;
+                stInputAttr.stDispWin.u16Height = stInputAttr.u16SrcHeight;
+            }
+            break;
+            case EN_PICTURE_DISPLAY_USER:
+            {
+                stInputAttr.stDispWin.u16X = u32DstX;
+                stInputAttr.stDispWin.u16Y = u32DstY;
+                stInputAttr.stDispWin.u16Width = stInputAttr.u16SrcWidth;
+                stInputAttr.stDispWin.u16Height = stInputAttr.u16SrcHeight;
+            }
+            break;
+            default:
+                return;
+        }
+        stVideoFrameBuffer.ePixelFormat = E_MHAL_PIXEL_FRAME_YUV_MST_420;
+        stVideoFrameBuffer.aPhyAddr[0] = (MS_PHYADDR)(pstDispInfo->u32DispBufStart + u32Shift);
+        stVideoFrameBuffer.aPhyAddr[1] = (MS_PHYADDR)(pstDispInfo->u32DispBufStart + u32Shift + u16ImgWidth * u16ImgHeight);
+        stVideoFrameBuffer.au32Stride[0] = u16ImgWidth;
+        MHAL_DISP_InputPortSetAttr(pInputPortCtx, &stInputAttr);
+        MHAL_DISP_InputPortFlip(pInputPortCtx, &stVideoFrameBuffer);
+        MHAL_DISP_InputPortEnable(pInputPortCtx, TRUE);
+    }
 #endif
 #if defined(CONFIG_SSTAR_PNL)
     static void *pPnlDev = NULL;
@@ -1802,71 +1856,75 @@ void _BootDispCtrl(SS_SHEADER_DispPnl_u *puDispPnlCfg, SS_SHEADER_DispInfo_t *ps
     }
 #endif
 #if defined(CONFIG_SSTAR_RGN)
-    MHAL_RGN_GopType_e eGopId = E_MHAL_GOP_VPE_PORT1;
-    MHAL_RGN_GopGwinId_e eGwinId = E_MHAL_GOP_GWIN_ID_0;
-    MHAL_RGN_GopWindowConfig_t stSrcWinCfg;
-    MHAL_RGN_GopWindowConfig_t stDstWinCfg;
-    u8 bInitRgn = 0;
-
-    switch (eAspectRatio)
+    if (1 == gu32GOPorMOP)
     {
-        case EN_PICTURE_DISPLAY_ZOOM:
+        MHAL_RGN_GopType_e eGopId = E_MHAL_GOP_VPE_PORT1;
+        MHAL_RGN_GopGwinId_e eGwinId = E_MHAL_GOP_GWIN_ID_0;
+        MHAL_RGN_GopWindowConfig_t stSrcWinCfg;
+        MHAL_RGN_GopWindowConfig_t stDstWinCfg;
+        u8 bInitRgn = 0;
+        //BOOTLOGO_DBG(BOOTLOGO_DBG_LEVEL_INFO, "CONFIG_SSTAR_RGN enable, func:%s, line:%d\n", __FUNCTION__,__LINE__);
+
+        switch (eAspectRatio)
         {
-            stSrcWinCfg.u32X = 0;
-            stSrcWinCfg.u32Y = 0;
-            stSrcWinCfg.u32Width = min(u16DispOutWidht, u16ImgWidth);
-            stSrcWinCfg.u32Height = min(u16DispOutHeight, u16ImgHeight);
-            stDstWinCfg.u32X = 0;
-            stDstWinCfg.u32Y = 0;
-            stDstWinCfg.u32Width  = u16DispOutWidht;
-            stDstWinCfg.u32Height = u16DispOutHeight;
+            case EN_PICTURE_DISPLAY_ZOOM:
+            {
+                stSrcWinCfg.u32X = 0;
+                stSrcWinCfg.u32Y = 0;
+                stSrcWinCfg.u32Width = min(u16DispOutWidht, u16ImgWidth);
+                stSrcWinCfg.u32Height = min(u16DispOutHeight, u16ImgHeight);
+                stDstWinCfg.u32X = 0;
+                stDstWinCfg.u32Y = 0;
+                stDstWinCfg.u32Width  = u16DispOutWidht;
+                stDstWinCfg.u32Height = u16DispOutHeight;
+            }
+            break;
+            case EN_PICTURE_DISPLAY_CENTER:
+            {
+                stSrcWinCfg.u32X = 0;
+                stSrcWinCfg.u32Y = 0;
+                stSrcWinCfg.u32Width = min(u16DispOutWidht, u16ImgWidth);
+                stSrcWinCfg.u32Height = min(u16DispOutHeight, u16ImgHeight);
+                stDstWinCfg.u32X = (u16DispOutWidht - stSrcWinCfg.u32Width) / 2;
+                stDstWinCfg.u32Y = (u16DispOutHeight - stSrcWinCfg.u32Height) / 2;
+                stDstWinCfg.u32Width = stSrcWinCfg.u32Width;
+                stDstWinCfg.u32Height = stSrcWinCfg.u32Height;
+            }
+            break;
+            case EN_PICTURE_DISPLAY_USER:
+            {
+                stSrcWinCfg.u32X = 0;
+                stSrcWinCfg.u32Y = 0;
+                stSrcWinCfg.u32Width = min(u16DispOutWidht, u16ImgWidth);
+                stSrcWinCfg.u32Height = min(u16DispOutHeight, u16ImgHeight);
+                stDstWinCfg.u32X = u32DstX;
+                stDstWinCfg.u32Y = u32DstY;
+                stDstWinCfg.u32Width = min(u16DispOutWidht, u16ImgWidth);
+                stDstWinCfg.u32Height = min(u16DispOutHeight, u16ImgHeight);
+            }
+            break;
+            default:
+                return;
         }
-        break;
-        case EN_PICTURE_DISPLAY_CENTER:
+        if (!bInitRgn)
         {
-            stSrcWinCfg.u32X = 0;
-            stSrcWinCfg.u32Y = 0;
-            stSrcWinCfg.u32Width = min(u16DispOutWidht, u16ImgWidth);
-            stSrcWinCfg.u32Height = min(u16DispOutHeight, u16ImgHeight);
-            stDstWinCfg.u32X = (u16DispOutWidht - stSrcWinCfg.u32Width) / 2;
-            stDstWinCfg.u32Y = (u16DispOutHeight - stSrcWinCfg.u32Height) / 2;
-            stDstWinCfg.u32Width = stSrcWinCfg.u32Width;
-            stDstWinCfg.u32Height = stSrcWinCfg.u32Height;
+            MHAL_RGN_GopInit();
+            bInitRgn = 1;
         }
-        break;
-        case EN_PICTURE_DISPLAY_USER:
-        {
-            stSrcWinCfg.u32X = 0;
-            stSrcWinCfg.u32Y = 0;
-            stSrcWinCfg.u32Width = min(u16DispOutWidht, u16ImgWidth);
-            stSrcWinCfg.u32Height = min(u16DispOutHeight, u16ImgHeight);
-            stDstWinCfg.u32X = u32DstX;
-            stDstWinCfg.u32Y = u32DstY;
-            stDstWinCfg.u32Width = min(u16DispOutWidht, u16ImgWidth);
-            stDstWinCfg.u32Height = min(u16DispOutHeight, u16ImgHeight);
-        }
-        break;
-        default:
-            return;
+        MHAL_RGN_GopSetBaseWindow(eGopId, &stSrcWinCfg, &stDstWinCfg);
+
+        MHAL_RGN_GopGwinSetPixelFormat(eGopId, eGwinId, E_MHAL_RGN_PIXEL_FORMAT_ARGB8888);
+
+        MHAL_RGN_GopGwinSetWindow(eGopId, eGwinId, min(u16DispOutWidht, u16ImgWidth), min(u16DispOutHeight, u16ImgHeight), min(u16DispOutWidht, u16ImgWidth) * 4, 0, 0);
+
+        MHAL_RGN_GopGwinSetBuffer(eGopId, eGwinId, (MS_PHYADDR)pstDispInfo->u32DispBufStart);
+
+        MHAL_RGN_GopSetAlphaZeroOpaque(eGopId, FALSE, FALSE, E_MHAL_RGN_PIXEL_FORMAT_ARGB8888);
+
+        MHAL_RGN_GopSetAlphaType(eGopId, eGwinId, E_MHAL_GOP_GWIN_ALPHA_PIXEL, 0xFF);
+
+        MHAL_RGN_GopGwinEnable(eGopId,eGwinId);
     }
-    if (!bInitRgn)
-    {
-        MHAL_RGN_GopInit();
-        bInitRgn = 1;
-    }
-    MHAL_RGN_GopSetBaseWindow(eGopId, &stSrcWinCfg, &stDstWinCfg);
-
-    MHAL_RGN_GopGwinSetPixelFormat(eGopId, eGwinId, E_MHAL_RGN_PIXEL_FORMAT_ARGB8888);
-
-    MHAL_RGN_GopGwinSetWindow(eGopId, eGwinId, min(u16DispOutWidht, u16ImgWidth), min(u16DispOutHeight, u16ImgHeight), min(u16DispOutWidht, u16ImgWidth) * 4, 0, 0);
-
-    MHAL_RGN_GopGwinSetBuffer(eGopId, eGwinId, (MS_PHYADDR)pstDispInfo->u32DispBufStart);
-
-    MHAL_RGN_GopSetAlphaZeroOpaque(eGopId, FALSE, FALSE, E_MHAL_RGN_PIXEL_FORMAT_ARGB8888);
-
-    MHAL_RGN_GopSetAlphaType(eGopId, eGwinId, E_MHAL_GOP_GWIN_ALPHA_PIXEL, 0xFF);
-
-    MHAL_RGN_GopGwinEnable(eGopId,eGwinId);
 #endif
 
 #endif
@@ -1984,12 +2042,6 @@ SS_SHEADER_DispPnl_u *_BootDbTable(SS_SHEADER_DispInfo_t *pHeadInfo, SS_SHEADER_
         }
     }
 }
-#if defined(CONFIG_SSTAR_RGN)
-static u32 gu32FrameBuffer = 0;
-static u32 gu32DispWidth = 0;
-static u32 gu32DispHeight = 0;
-static u32 gu32Rotate = 0;
-#endif
 
 int do_display (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
@@ -2177,6 +2229,17 @@ int do_display (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
     }
     pDataHead = (SS_SHEADER_DataInfo_t *)(pRawData + sizeof(SS_HEADER_Desc_t));
     u32LogoId = simple_strtoul(argv[1], NULL, 0);
+    #if defined(CONFIG_SSTAR_RGN)
+    if (0 == u32LogoId)
+    {
+        gu32GOPorMOP = 0;//power on logo use mop
+    }
+    else
+    {
+        gu32GOPorMOP = 1;//upgrade ui use gop
+    }
+    BOOTLOGO_DBG(BOOTLOGO_DBG_LEVEL_INFO, "CONFIG_SSTAR_RGN enable, u32LogoId:%d, gu32GOPorMOP:%d\n", u32LogoId, gu32GOPorMOP);
+    #endif
     for (idx = 0; idx < pHeader->u32DataInfoCnt; idx++)
     {
         if (!strcmp((char *)pDataHead->au8DataInfoName, "LOGO"))
@@ -2202,8 +2265,18 @@ int do_display (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
         return 0;
     }
 #if defined(CONFIG_SSTAR_RGN)
-    _BootJpdArgbCtrl(pstPictureInfo->stDataInfo.u32DataTotalSize, (u32)((s8 *)pstPictureInfo + pstPictureInfo->stDataInfo.u32SubHeadSize),
-                 pDispInfo->u32DispBufSize, pDispInfo->u32DispBufStart, &u16ImgWidth, &u16ImgHeight, (PIC_ROTATION_e)simple_strtoul(argv[5], NULL, 0));
+    if (1 == gu32GOPorMOP)
+    {
+        //BOOTLOGO_DBG(BOOTLOGO_DBG_LEVEL_INFO, "CONFIG_SSTAR_RGN enable, func:%s, line:%d\n", __FUNCTION__,__LINE__);
+        _BootJpdArgbCtrl(pstPictureInfo->stDataInfo.u32DataTotalSize, (u32)((s8 *)pstPictureInfo + pstPictureInfo->stDataInfo.u32SubHeadSize),
+                     pDispInfo->u32DispBufSize, pDispInfo->u32DispBufStart, &u16ImgWidth, &u16ImgHeight, (PIC_ROTATION_e)simple_strtoul(argv[5], NULL, 0));
+    }
+    else
+    {
+        //BOOTLOGO_DBG(BOOTLOGO_DBG_LEVEL_INFO, "CONFIG_SSTAR_RGN enable, func:%s, line:%d\n", __FUNCTION__,__LINE__);
+        _BootJpdYuvCtrl(pstPictureInfo->stDataInfo.u32DataTotalSize, (u32)((s8 *)pstPictureInfo + pstPictureInfo->stDataInfo.u32SubHeadSize),
+             pDispInfo->u32DispBufSize, pDispInfo->u32DispBufStart, &u16ImgWidth, &u16ImgHeight, (PIC_ROTATION_e)simple_strtoul(argv[5], NULL, 0));
+    }
 #else
     _BootJpdYuvCtrl(pstPictureInfo->stDataInfo.u32DataTotalSize, (u32)((s8 *)pstPictureInfo + pstPictureInfo->stDataInfo.u32SubHeadSize),
              pDispInfo->u32DispBufSize, pDispInfo->u32DispBufStart, &u16ImgWidth, &u16ImgHeight, (PIC_ROTATION_e)simple_strtoul(argv[5], NULL, 0));
@@ -2217,11 +2290,15 @@ int do_display (cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
     if (pRawData)
         free(pRawData);
 #if defined(CONFIG_SSTAR_RGN)
-    gu32FrameBuffer = pDispInfo->u32DispBufStart + 0x20000000;
-    gu32DispWidth = u16ImgWidth;
-    gu32DispHeight = u16ImgHeight;
-    gu32Rotate = simple_strtoul(argv[5], NULL, 0);
-    BOOTLOGO_DBG(BOOTLOGO_DBG_LEVEL_INFO, "Framebuffer addr 0x%x width %d height %d Rotate %d\n", gu32FrameBuffer, gu32DispWidth, gu32DispHeight,gu32Rotate);
+    if (1 == gu32GOPorMOP)
+    {
+        //BOOTLOGO_DBG(BOOTLOGO_DBG_LEVEL_INFO, "CONFIG_SSTAR_RGN enable, func:%s, line:%d\n", __FUNCTION__,__LINE__);
+        gu32FrameBuffer = pDispInfo->u32DispBufStart + 0x20000000;
+        gu32DispWidth = u16ImgWidth;
+        gu32DispHeight = u16ImgHeight;
+        gu32Rotate = simple_strtoul(argv[5], NULL, 0);
+        BOOTLOGO_DBG(BOOTLOGO_DBG_LEVEL_INFO, "Framebuffer addr 0x%x width %d height %d Rotate %d\n", gu32FrameBuffer, gu32DispWidth, gu32DispHeight,gu32Rotate);
+    }
 #endif
 
     return 0;

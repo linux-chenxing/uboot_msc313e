@@ -31,15 +31,15 @@
 
 /* SPI NAND messages */
 
-//	static U32 CheckSum(U8 *pu8_Data, U16 u16_ByteCnt)
-//	{
-//	    U32 u32_Sum = 0;
+//  static U32 CheckSum(U8 *pu8_Data, U16 u16_ByteCnt)
+//  {
+//      U32 u32_Sum = 0;
 //
-//	    while (u16_ByteCnt--)
-//	    u32_Sum += *pu8_Data++;
+//      while (u16_ByteCnt--)
+//      u32_Sum += *pu8_Data++;
 //
-//	    return u32_Sum;
-//	}
+//      return u32_Sum;
+//  }
 
 void dumpPartition(PARTITION_INFO_t *ptPartInfo, SPI_NAND_DRIVER_t *pSpiNandDrv)
 {
@@ -111,7 +111,7 @@ int MDrv_SPINAND_WriteCIS_for_ROM(SPINAND_FLASH_INFO_TAG_t *pSpiNandInfoTagOut, 
         }
 
         /**
-         **	Write Partition Info the 2nd page
+         ** Write Partition Info the 2nd page
          **/
 
         if(pSpiNandDrv->u8_HasPNI == 1)
@@ -226,7 +226,7 @@ static int _MDrv_SPINAND_GetMtdPartsFromPNI(char *buf)
     bFound = FALSE;
     nMaxPart = sizeof(pPartInfo->records) / sizeof(pPartInfo->records[0]);
     for(u8_i = 0; u8_i < pPartInfo->u16_PartCnt && u8_i < nMaxPart; u8_i ++)
-	{
+    {
         if( (pPartInfo->records[u8_i].u16_PartType & UNFD_LOGI_PART) == UNFD_LOGI_PART)
             bLogic = TRUE;
         else
@@ -234,77 +234,84 @@ static int _MDrv_SPINAND_GetMtdPartsFromPNI(char *buf)
         if( (pPartInfo->records[u8_i].u16_PartType & UNFD_HIDDEN_PART) == UNFD_HIDDEN_PART)
             continue;
 
-		nPartTypeNoFlag = pPartInfo->records[u8_i].u16_PartType & 0x0FFF;
+        nPartTypeNoFlag = pPartInfo->records[u8_i].u16_PartType & 0x0FFF;
 
-		PartSize = 0;
-		if( bFound )
-		{
+        PartSize = 0;
+        if( bFound )
+        {
             memcpy(mtd_buf, ",", 1);
             mtd_buf ++;
             Maxlen --;
-		}
+        }
         bFound = FALSE;
 
-		PartSize = pSpiNandDrv->tSpinandInfo.u16_BlkPageCnt * pSpiNandDrv->tSpinandInfo.u16_PageByteCnt *
-			(pPartInfo->records[u8_i].u16_BackupBlkCnt + pPartInfo->records[u8_i].u16_BlkCnt);
+        PartSize = pSpiNandDrv->tSpinandInfo.u16_BlkPageCnt * pSpiNandDrv->tSpinandInfo.u16_PageByteCnt *
+            (pPartInfo->records[u8_i].u16_BackupBlkCnt + pPartInfo->records[u8_i].u16_BlkCnt);
 
-		if(u16_LastPartType != pPartInfo->records[u8_i].u16_PartType)
-		{
-		    u8_PartNo = 0;
-		}
-		else
-		{
-		    u8_PartNo++;
-		}
-		u16_LastPartType = pPartInfo->records[u8_i].u16_PartType;
+        if(u16_LastPartType != pPartInfo->records[u8_i].u16_PartType)
+        {
+            u8_PartNo = 0;
+        }
+        else
+        {
+            u8_PartNo++;
+        }
+        u16_LastPartType = pPartInfo->records[u8_i].u16_PartType;
 
         switch(nPartTypeNoFlag)
-		{
-			case UNFD_PART_CIS:
-				sprintf(PartName,"CIS");
-				break;
-			case UNFD_PART_IPL_CUST:
-				sprintf(PartName,"IPL_CUST%d",u8_PartNo );
-				break;
-			case UNFD_PART_BOOTLOGO:
-				sprintf(PartName,"LOGO" );
-				break;
-			case UNFD_PART_IPL:
-				sprintf(PartName,"IPL%d",u8_PartNo );
-				break;
-			case UNFD_PART_CUS:
-				sprintf(PartName,"CUS" );
-				break;
-			case UNFD_PART_UBOOT:
-				sprintf(PartName,"UBOOT%d",u8_PartNo );
-				break;
-			case UNFD_PART_OS:
-				sprintf(PartName,"KERNEL" );
-				break;
-			case UNFD_PART_SECINFO:
-				sprintf(PartName,"SECINFO" );
-				break;
-			case UNFD_PART_OTP:
-				sprintf(PartName,"OTP" );
-				break;
-			case UNFD_PART_RECOVERY:
-				sprintf(PartName,"RECOVERY" );
-				break;
-			case UNFD_PART_E2PBAK:
-				sprintf(PartName,"E2PBAK" );
-				break;
-			case UNFD_PART_NVRAMBAK:
-				sprintf(PartName,"NVRAMBAK" );
-				break;
-			case UNFD_PART_NPT:
-				sprintf(PartName,"NPT" );
-				break;
-			case UNFD_PART_ENV:
-                sprintf(PartName,"ENV%d",u8_PartNo );
-				break;
-			case UNFD_PART_MISC:
-				sprintf(PartName,"MISC" );
-				break;
+        {
+            case UNFD_PART_CIS:
+                sprintf(PartName,"CIS");
+                break;
+            case UNFD_PART_IPL_CUST:
+                sprintf(PartName,"IPL_CUST%d",u8_PartNo );
+                break;
+            case UNFD_PART_BOOTLOGO:
+                sprintf(PartName,"LOGO" );
+                break;
+            case UNFD_PART_IPL:
+                sprintf(PartName,"IPL%d",u8_PartNo );
+                break;
+            case UNFD_PART_CUS:
+                sprintf(PartName,"CUS" );
+                break;
+            case UNFD_PART_UBOOT:
+                sprintf(PartName,"UBOOT%d",u8_PartNo );
+                break;
+            case UNFD_PART_OS:
+                sprintf(PartName,"KERNEL" );
+                break;
+            case UNFD_PART_SECINFO:
+                sprintf(PartName,"SECINFO" );
+                break;
+            case UNFD_PART_OTP:
+                sprintf(PartName,"OTP" );
+                break;
+            case UNFD_PART_RECOVERY:
+                sprintf(PartName,"RECOVERY" );
+                break;
+            case UNFD_PART_E2PBAK:
+                sprintf(PartName,"E2PBAK" );
+                break;
+            case UNFD_PART_NVRAMBAK:
+                sprintf(PartName,"NVRAMBAK" );
+                break;
+            case UNFD_PART_NPT:
+                sprintf(PartName,"NPT" );
+                break;
+            case UNFD_PART_ENV:
+                if(!u8_PartNo)
+                {
+                    sprintf(PartName,"ENV");
+                }
+                else
+                {
+                    sprintf(PartName,"ENV%d",u8_PartNo );
+                }
+                break;
+            case UNFD_PART_MISC:
+                sprintf(PartName,"MISC" );
+                break;
             case UNFD_PART_RTOS:
                 sprintf(PartName,"RTOS" );
                 break;
@@ -323,6 +330,9 @@ static int _MDrv_SPINAND_GetMtdPartsFromPNI(char *buf)
             case UNFD_PART_ROOTFS:
                 sprintf(PartName,"rootfs" );
                 break;
+            case UNFD_PART_ROOTFS_BAK:
+                sprintf(PartName,"rootfs_bak" );
+                break;
 			default:
 			    if(nPartTypeNoFlag >= UNFD_PART_CUST0 &&
 			       nPartTypeNoFlag <= UNFD_PART_CUSTf)
@@ -336,24 +346,24 @@ static int _MDrv_SPINAND_GetMtdPartsFromPNI(char *buf)
 				break;
 		}
         bFound = TRUE;
-		if (bFirst)
+        if (bFirst)
         {
-			sprintf(tmp, "0x%X@0x%X(%s)", (unsigned int)PartSize, 
+			sprintf(tmp, "0x%X@0x%X(%s)", (unsigned int)PartSize,
                 pPartInfo->records[u8_i].u16_StartBlk * pSpiNandDrv->tSpinandInfo.u16_BlkPageCnt *
                     pSpiNandDrv->tSpinandInfo.u16_PageByteCnt, PartName); //,pPartInfo->records[u8_i].u16_PartType);
             bFirst = FALSE;
         }
-		else
-			sprintf(tmp, "0x%X(%s)", (unsigned int)PartSize, PartName); //,pPartInfo->records[u8_i].u16_PartType);
+        else
+            sprintf(tmp, "0x%X(%s)", (unsigned int)PartSize, PartName); //,pPartInfo->records[u8_i].u16_PartType);
 
-		len = strlen(tmp);
-		memcpy(mtd_buf, tmp, len);
-		mtd_buf += len;
-		if (Maxlen < len)
-			goto cleanup;
-		Maxlen -= len;
+        len = strlen(tmp);
+        memcpy(mtd_buf, tmp, len);
+        mtd_buf += len;
+        if (Maxlen < len)
+            goto cleanup;
+        Maxlen -= len;
 
-	}
+    }
 
     while(bLogic && u8_i > 0)
     {
@@ -375,12 +385,12 @@ static int _MDrv_SPINAND_GetMtdPartsFromPNI(char *buf)
         break;
     }
 
-	*mtd_buf = '\0';
-	return 0;
+    *mtd_buf = '\0';
+    return 0;
 
 cleanup:
-	buf[0] = '\0';
-	return -1;
+    buf[0] = '\0';
+    return -1;
 }
 
 int MDrv_SPINAND_SearchCIS_in_DRAM(U8 *pu8_CISAddr, U8 *pu8_PNIAddr, SPINAND_FLASH_INFO_TAG_t *pSpiNandInfoTagOut)
@@ -396,8 +406,8 @@ int MDrv_SPINAND_SearchCIS_in_DRAM(U8 *pu8_CISAddr, U8 *pu8_PNIAddr, SPINAND_FLA
 
     //Search 20 pieces of possiable cis memory
     u32_i = 0;
-//	printf("pu8_CISAddr %x\n",pu8_CISAddr);
-//	printf("pSpiNandDrv->tSpinandInfo.au8_ID[0] %x\n",pSpiNandDrv->tSpinandInfo.au8_ID[0]);
+//  printf("pu8_CISAddr %x\n",pu8_CISAddr);
+//  printf("pSpiNandDrv->tSpinandInfo.au8_ID[0] %x\n",pSpiNandDrv->tSpinandInfo.au8_ID[0]);
 
     while(1)
     {
@@ -440,32 +450,32 @@ int MDrv_SPINAND_SearchCIS_in_DRAM(U8 *pu8_CISAddr, U8 *pu8_PNIAddr, SPINAND_FLA
     memcpy(&pSpiNandDrv->tSpinandInfo, ptSpinandInfo, sizeof(SPINAND_FLASH_INFO_t));
     //MDrv_SPINAND_ForceInit(ptSpinandInfo);
 
-	/*Search pni*/
-	pSpiNandDrv->u8_HasPNI = 0;
+    /*Search pni*/
+    pSpiNandDrv->u8_HasPNI = 0;
 
-	if(pu8_PNIAddr != NULL)
-	{
-	    ptPartInfo = (PARTITION_INFO_t*) (pu8_PNIAddr);
-	    memcpy(&pSpiNandDrv->tPartInfo, ptPartInfo, 0x200);
-	    /*Add checksum*/
-	    u32_chkSum = _MDrv_SPINAND_checkSum((U8*)ptPartInfo + 0x04, 0x200 - 0x04);
-	    if(u32_chkSum== ptPartInfo->u32_ChkSum)
-	    {
-	        spi_nand_msg("PNI match success");
-	        pSpiNandDrv->u8_HasPNI = 1;
-	    }
-	    else
-	    {
-	        spi_nand_err("PNI mismatch \x1b[33m%X\x1b[0m", u32_chkSum);
-	        pSpiNandDrv->u8_HasPNI = 0;
-	        return ERR_SPINAND_INVALID;
-	    }
-	}
-	else
-	{
-	    spi_nand_err("CIS doesn't contain part info");
-	    pSpiNandDrv->u8_HasPNI = 0;
-	}
+    if(pu8_PNIAddr != NULL)
+    {
+        ptPartInfo = (PARTITION_INFO_t*) (pu8_PNIAddr);
+        memcpy(&pSpiNandDrv->tPartInfo, ptPartInfo, 0x200);
+        /*Add checksum*/
+        u32_chkSum = _MDrv_SPINAND_checkSum((U8*)ptPartInfo + 0x04, 0x200 - 0x04);
+        if(u32_chkSum== ptPartInfo->u32_ChkSum)
+        {
+            spi_nand_msg("PNI match success");
+            pSpiNandDrv->u8_HasPNI = 1;
+        }
+        else
+        {
+            spi_nand_err("PNI mismatch \x1b[33m%X\x1b[0m", u32_chkSum);
+            pSpiNandDrv->u8_HasPNI = 0;
+            return ERR_SPINAND_INVALID;
+        }
+    }
+    else
+    {
+        spi_nand_err("CIS doesn't contain part info");
+        pSpiNandDrv->u8_HasPNI = 0;
+    }
     memcpy(pSpiNandInfoTagOut, pSpiNandInfoTag , sizeof(SPINAND_FLASH_INFO_TAG_t));
     return ERR_SPINAND_SUCCESS;
 }
@@ -473,7 +483,7 @@ int MDrv_SPINAND_SearchCIS_in_DRAM(U8 *pu8_CISAddr, U8 *pu8_PNIAddr, SPINAND_FLA
 int MDrv_SPINAND_GetMtdParts(char *buf)
 {
     SPI_NAND_DRIVER_t *pSpiNandDrv = (SPI_NAND_DRIVER_t*)drvSPINAND_get_DrvContext_address();
-    
+
     if(1 == pSpiNandDrv->u8_HasPNI && 0 == (pSpiNandDrv->tSpinandInfo.u8_UBOOTPBA))
     {
         spi_nand_err("Force Search mtdparts from PNI...\n");
@@ -497,20 +507,20 @@ int MDrv_SPINAND_GetMtdParts(char *buf)
 }
 /* Search for partition of type @u16_PartType, begin from @pRecord */
 PARTITION_RECORD_t *MDrv_SPINAND_SearchPartition(PARTITION_RECORD_t *pRecord,
-											U16 u16_PartType)
+                                            U16 u16_PartType)
 {
     SPI_NAND_DRIVER_t *pSpiNandDrv = (SPI_NAND_DRIVER_t*)drvSPINAND_get_DrvContext_address();
     PARTITION_INFO_t *pPartInfo = &pSpiNandDrv->tPartInfo;
 
-	while (pRecord - pPartInfo->records < pPartInfo->u16_PartCnt) {
+    while (pRecord - pPartInfo->records < pPartInfo->u16_PartCnt) {
 
-		if (pRecord->u16_PartType == u16_PartType)
-			return pRecord;
+        if (pRecord->u16_PartType == u16_PartType)
+            return pRecord;
 
-		pRecord++;
-	}
+        pRecord++;
+    }
 
-	return (void*)0;
+    return (void*)0;
 }
 
 int MDrv_SPINAND_GetPartOffset(U16 u16_PartType, U32* u32_Offset)
@@ -553,23 +563,23 @@ int MDrv_SPINAND_GetPartOffset(U16 u16_PartType, U32* u32_Offset)
 
 int MDrv_SPINAND_ReadCISBlk(U8* pu8_DataBuf)
 {
-	U32 u32_Err = ERR_SPINAND_SUCCESS;
-	U16 u16Idx = 0;
-	U16 u16PageIndex = 0;
-	U16 u16BlkIndex = 10;
-	U16 page_off = 0;
+    U32 u32_Err = ERR_SPINAND_SUCCESS;
+    U16 u16Idx = 0;
+    U16 u16PageIndex = 0;
+    U16 u16BlkIndex = 10;
+    U16 page_off = 0;
 
-	SPI_NAND_DRIVER_t *pSpiNandDrv = (SPI_NAND_DRIVER_t*)drvSPINAND_get_DrvContext_address();
-	page_off = pSpiNandDrv->tSpinandInfo.u16_PageByteCnt + pSpiNandDrv->tSpinandInfo.u16_SpareByteCnt;
-	u16PageIndex = (u16BlkIndex * pSpiNandDrv->tSpinandInfo.u16_BlkPageCnt) - 1;
+    SPI_NAND_DRIVER_t *pSpiNandDrv = (SPI_NAND_DRIVER_t*)drvSPINAND_get_DrvContext_address();
+    page_off = pSpiNandDrv->tSpinandInfo.u16_PageByteCnt + pSpiNandDrv->tSpinandInfo.u16_SpareByteCnt;
+    u16PageIndex = (u16BlkIndex * pSpiNandDrv->tSpinandInfo.u16_BlkPageCnt) - 1;
 
-	for(u16Idx = 0; u16Idx <= u16PageIndex; u16Idx++)
-	{
-		u32_Err = MDrv_SPINAND_Read(u16Idx, pu8_DataBuf, pu8_DataBuf + pSpiNandDrv->tSpinandInfo.u16_PageByteCnt);
-		pu8_DataBuf += page_off;
-	}
-	printf("Read total size 0x%X\n", page_off * (u16Idx));
-	return u32_Err;
+    for(u16Idx = 0; u16Idx <= u16PageIndex; u16Idx++)
+    {
+        u32_Err = MDrv_SPINAND_Read(u16Idx, pu8_DataBuf, pu8_DataBuf + pSpiNandDrv->tSpinandInfo.u16_PageByteCnt);
+        pu8_DataBuf += page_off;
+    }
+    printf("Read total size 0x%X\n", page_off * (u16Idx));
+    return u32_Err;
 }
 
 
@@ -815,15 +825,15 @@ int MDrv_SPINAND_write_bootloader(U32 u32_Row,U8 * pu8_addr, U32 u32_size, U8 u8
 #if 0
 static u32 empty_check(const void *buf, u32 len)
 {
-	int i;
+    int i;
     SPI_NAND_DRIVER_t *pSpiNandDrv = (SPI_NAND_DRIVER_t*)drvSPINAND_get_DrvContext_address();
-	for (i = (len >> 2) - 1; i >= 0; i--)
-		if (((const uint32_t *)buf)[i] != 0xFFFFFFFF)
-			break;
+    for (i = (len >> 2) - 1; i >= 0; i--)
+        if (((const uint32_t *)buf)[i] != 0xFFFFFFFF)
+            break;
 
-	/* The resulting length must be aligned to the minimum flash I/O size */
-	len = ALIGN((i + 1) << 2, pSpiNandDrv->tSpinandInfo.u16_PageByteCnt + pSpiNandDrv->tSpinandInfo.u16_SpareByteCnt);
-	return len;
+    /* The resulting length must be aligned to the minimum flash I/O size */
+    len = ALIGN((i + 1) << 2, pSpiNandDrv->tSpinandInfo.u16_PageByteCnt + pSpiNandDrv->tSpinandInfo.u16_SpareByteCnt);
+    return len;
 }
 #endif
 #if 0
@@ -839,7 +849,7 @@ int MDrv_SPINAND_ReadCISBlk(U32 u32_off, U8* pu8_DataBuf)
     U32 u32_Row = u32_off/pSpiNandDrv->tSpinandInfo.u16_PageByteCnt;
     U32 page_off = pSpiNandDrv->tSpinandInfo.u16_PageByteCnt + pSpiNandDrv->tSpinandInfo.u16_SpareByteCnt;
 
-//		pglen = pSpiNandDrv->tSpinandInfo.u16_PageByteCnt + pSpiNandDrv->tSpinandInfo.u16_SpareByteCnt;
+//      pglen = pSpiNandDrv->tSpinandInfo.u16_PageByteCnt + pSpiNandDrv->tSpinandInfo.u16_SpareByteCnt;
     for(i=0 ; i<pSpiNandDrv->tSpinandInfo.u16_BlkPageCnt; i++)
     {
     u32_Err = MDrv_SPINAND_Read(u32_Row+i, pu8_DataBuf+page_off*i, pu8_DataBuf+page_off*i+pSpiNandDrv->tSpinandInfo.u16_PageByteCnt);
@@ -885,7 +895,7 @@ U32 MDrv_SPINAND_RefreshCIS(void)
     PARTITION_INFO_t *pPartInfo = &pSpiNandDrv->tPartInfo;
     U32 u32_BlkIdx, u32_MBootBegin = 0, u32_MBootEnd = 0;
     U32 u32_Err;
-    U8 	u8_i;
+    U8  u8_i;
     int bl_count = 0;
 
     pSpiNandInfoTag = (SPINAND_FLASH_INFO_TAG_t *)malloc(512);
@@ -923,7 +933,7 @@ U32 MDrv_SPINAND_RefreshCIS(void)
 
     //search sboot uboot/ HashX location for update nni infomation
 
-    if(pSpiNandDrv->tSpinandInfo.u8_BL0PBA != 0)	//for bl uboot
+    if(pSpiNandDrv->tSpinandInfo.u8_BL0PBA != 0)    //for bl uboot
     {
     bl_count = 0;
     //search bl location in MBOOT PARTITION
@@ -985,7 +995,7 @@ U32 MDrv_SPINAND_RefreshCIS(void)
     printk(KERN_NOTICE"UBOOTPBA %X\n", pSpiNandDrv->tSpinandInfo.u8_UBOOTPBA);
     }
     }
-    else if(pSpiNandDrv->tSpinandInfo.u8_HashPBA[0][0] != 0)	//for hash
+    else if(pSpiNandDrv->tSpinandInfo.u8_HashPBA[0][0] != 0)    //for hash
     {
     bl_count = 0;
     //search bl location in MBOOT PARTITION
@@ -1075,7 +1085,7 @@ U32 MDrv_SPINAND_WriteBlkByteOffset(U8 *pu8_DestAddr, U16 u16_PBA, U32 u32_Start
     #endif
 
     u16_BlkPageCnt = pNandDrv->u16_BlkPageCnt;
-    if(pNandDrv->u8_CellType == 1)	// MLC
+    if(pNandDrv->u8_CellType == 1)  // MLC
     u16_BlkPageCnt = u16_BlkPageCnt>>1;
 
     /* sector size from AP is 512 Bytes, not NAND sector size */
@@ -1129,10 +1139,10 @@ U32 MDrv_SPINAND_WriteBlkByteOffset(U8 *pu8_DestAddr, U16 u16_PBA, U32 u32_Start
 
     return u32_Err;
     }
-//		SPAREINFO->u8_BadBlkMarker = 0xFF;
-//		SPAREINFO->u16_BackupPBA = u16_PBA;
-//		au8_SpareBuf[3] = 0x36;
-//		au8_SpareBuf[4] = 0x97;
+//      SPAREINFO->u8_BadBlkMarker = 0xFF;
+//      SPAREINFO->u16_BackupPBA = u16_PBA;
+//      au8_SpareBuf[3] = 0x36;
+//      au8_SpareBuf[4] = 0x97;
 
     au8_SpareBuf[0] = 0xFF;
     *pu16_BlkPBA = u16_PBA;
@@ -1183,10 +1193,10 @@ U32 MDrv_SPINAND_WriteBlkByteOffset(U8 *pu8_DestAddr, U16 u16_PBA, U32 u32_Start
     memcpy((au8_PageBuf+u16_ByteIdxInPage), pu8_DestAddr, u16_ByteCntRead);
     u32_BakPageIdx = (u16_BakBlkIdx << pNandDrv->u8_BlkPageCntBits) + ga_tPairedPageMap[(u32_StartByte>>pNandDrv->u8_PageByteCntBits)].u16_LSB;
 
-//		SPAREINFO->u8_BadBlkMarker = 0xFF;
-//		SPAREINFO->u16_BackupPBA = u16_PBA;
-//		au8_SpareBuf[3] = 0x36;
-//		au8_SpareBuf[4] = 0x97;
+//      SPAREINFO->u8_BadBlkMarker = 0xFF;
+//      SPAREINFO->u16_BackupPBA = u16_PBA;
+//      au8_SpareBuf[3] = 0x36;
+//      au8_SpareBuf[4] = 0x97;
 
     au8_SpareBuf[0] = 0xFF;
     *pu16_BlkPBA = u16_PBA;
@@ -1220,10 +1230,10 @@ U32 MDrv_SPINAND_WriteBlkByteOffset(U8 *pu8_DestAddr, U16 u16_PBA, U32 u32_Start
     }
 
     /* Read aligned sectors then */
-//	SPAREINFO->u8_BadBlkMarker = 0xFF;
-//	SPAREINFO->u16_BackupPBA = u16_PBA;
-//	au8_SpareBuf[3] = 0x36;
-//	au8_SpareBuf[4] = 0x97;
+//  SPAREINFO->u8_BadBlkMarker = 0xFF;
+//  SPAREINFO->u16_BackupPBA = u16_PBA;
+//  au8_SpareBuf[3] = 0x36;
+//  au8_SpareBuf[4] = 0x97;
 
     au8_SpareBuf[0] = 0xFF;
     *pu16_BlkPBA = u16_PBA;
@@ -1279,10 +1289,10 @@ U32 MDrv_SPINAND_WriteBlkByteOffset(U8 *pu8_DestAddr, U16 u16_PBA, U32 u32_Start
     return u32_Err;
     }
 
-//		SPAREINFO->u8_BadBlkMarker = 0xFF;
-//		SPAREINFO->u16_BackupPBA = u16_PBA;
-//		au8_SpareBuf[3] = 0x36;
-//		au8_SpareBuf[4] = 0x97;
+//      SPAREINFO->u8_BadBlkMarker = 0xFF;
+//      SPAREINFO->u16_BackupPBA = u16_PBA;
+//      au8_SpareBuf[3] = 0x36;
+//      au8_SpareBuf[4] = 0x97;
 
     au8_SpareBuf[0] = 0xFF;
     *pu16_BlkPBA = u16_PBA;
@@ -1330,10 +1340,10 @@ U32 MDrv_SPINAND_WriteBlkByteOffset(U8 *pu8_DestAddr, U16 u16_PBA, U32 u32_Start
 
     return u32_Err;
     }
-//		SPAREINFO->u8_BadBlkMarker = 0xFF;
-//		SPAREINFO->u16_BackupPBA = u16_PBA;
-//		au8_SpareBuf[3] = 0x36;
-//		au8_SpareBuf[4] = 0x97;
+//      SPAREINFO->u8_BadBlkMarker = 0xFF;
+//      SPAREINFO->u16_BackupPBA = u16_PBA;
+//      au8_SpareBuf[3] = 0x36;
+//      au8_SpareBuf[4] = 0x97;
 
     au8_SpareBuf[0] = 0xFF;
     *pu16_BlkPBA = u16_PBA;

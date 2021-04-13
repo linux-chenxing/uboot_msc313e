@@ -62,6 +62,7 @@
 #define UNFD_PART_KERNEL        0x12
 #define UNFD_PART_KERNEL_BAK    0x13
 #define UNFD_PART_ROOTFS        0x0F
+#define UNFD_PART_ROOTFS_BAK    0x1F
 
 #define UNFD_PART_CIS           0x20
 #define UNFD_PART_UBI           0x21

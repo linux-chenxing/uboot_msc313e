@@ -456,13 +456,14 @@ int do_bootcheck (void)
 int do_customer_init(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 {
 
-    //panel init
+    //spi panel init sample
     //init_panel();
-
+#ifdef CONFIG_CMD_KEYPAD_FORCE_UPGRADE
     //sar init
     sar_hw_init();
     //sar test
     do_bootcheck();
+#endif
 
 
     return 0;

@@ -477,7 +477,19 @@ void env_relocate_spec(void)
 		return;
 	}
 
-	env_import(buf, 1);
+
+
+#ifdef ENV_SAVE_DEFAULT
+    ret = env_import(buf, 1);
+
+    if (!ret) // If env_import fail
+    {
+        saveenv();
+    }
+#else
+    env_import(buf, 1);
+#endif
+
 #endif /* ! ENV_IS_EMBEDDED */
 }
 #endif /* CONFIG_ENV_OFFSET_REDUND */

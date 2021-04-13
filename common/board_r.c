@@ -417,6 +417,7 @@ static int initr_mmc(void)
 {
 	puts("MMC:   ");
 	mmc_initialize(gd->bd);
+
 	return 0;
 }
 #endif
@@ -614,6 +615,7 @@ static int initr_net(void)
 	debug("Reset Ethernet PHY\n");
 	reset_phy();
 #endif
+
 	return 0;
 }
 #endif
@@ -702,6 +704,18 @@ static int initr_sstar(void)
     if (!getenv("usb_folder"))
         setenv("usb_folder", "images");
 #endif
+    if (!getenv("mtdparts")) {
+        setenv("mtdparts", MTDPARTS_DEFAULT);
+    }
+
+    if (!getenv("mtdparts2")) {
+        setenv("mtdparts2", MTDPARTS2_DEFAULT);
+    }
+
+    if (!getenv("bootcmd")) {
+        setenv("bootcmd", CONFIG_BOOTCOMMAND);
+    }
+
     return 0;
 }
 

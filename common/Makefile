@@ -339,4 +339,5 @@ endif
 
 ifdef CONFIG_MS_PARTITION
 CFLAGS_cmd_bootlogo.o += -I$(srctree)/drivers/mstar/partition
+CFLAGS_autoboot.o += -I$(srctree)/drivers/mstar/partition
 endif

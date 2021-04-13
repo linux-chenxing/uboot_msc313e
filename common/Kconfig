@@ -352,6 +352,11 @@ config SRAM_DUMMY_ACCESS_RSA
 
 config CMD_CUSTOMER_INIT
     bool 'SSTAR CUSTOMER INIT'
+
+config CMD_KEYPAD_FORCE_UPGRADE
+	bool "KEYPAD FORCE UPGRADE"
+	depends on SSTAR_SAR
+
 endmenu
 endmenu
 config XZ

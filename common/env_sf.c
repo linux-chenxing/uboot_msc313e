@@ -369,6 +369,14 @@ void env_relocate_spec(void)
 	}
 
 	ret = env_import(buf, 1);
+
+#ifdef ENV_SAVE_DEFAULT
+    if (!ret) // If env_import fail
+    {
+        saveenv();
+    }
+#endif
+
 	if (ret)
 		gd->env_valid = 1;
 out:
