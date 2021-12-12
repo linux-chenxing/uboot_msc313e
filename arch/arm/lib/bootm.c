@@ -31,6 +31,18 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#define RUN_SMF 0
+#if RUN_SMF
+#define UBOOT_SMC_RUN_KERNEL    0xA00B
+extern unsigned int smcfn(unsigned int arg0, unsigned int arg1, unsigned int arg2, unsigned int arg3);
+struct linux_args_aarch32 {
+    uint	kernel_entry;
+    int	    zero;
+    int	    arch;
+    uint	params;
+};
+#endif
+
 static struct tag *params;
 
 static ulong get_sp(void)
@@ -89,7 +101,7 @@ static void announce_and_cleanup(int fake)
 static void setup_start_tag (bd_t *bd)
 {
 	params = (struct tag *)bd->bi_boot_params;
-
+    printf("atags:0x%08X\n",(unsigned int)params);
 	params->hdr.tag = ATAG_CORE;
 	params->hdr.size = tag_size (tag_core);
 
@@ -213,7 +225,7 @@ static void boot_prep_linux(bootm_headers_t *images)
 		}
 #endif
 	} else if (BOOTM_ENABLE_TAGS) {
-		debug("using: ATAGS\n");
+		debug("using: ATAGSS\n");
 		setup_start_tag(gd->bd);
 		if (BOOTM_ENABLE_SERIAL_TAG)
 			setup_serial_tag(&params);
@@ -284,6 +296,9 @@ static void boot_jump_linux(bootm_headers_t *images, int flag)
 	void (*kernel_entry)(int zero, int arch, uint params);
 	unsigned long r2;
 	int fake = (flag & BOOTM_STATE_OS_FAKE_GO);
+#if RUN_SMF
+    struct linux_args_aarch32 lx_args_32;
+#endif
 
 	kernel_entry = (void (*)(int, int, uint))images->ep;
 
@@ -311,7 +326,20 @@ static void boot_jump_linux(bootm_headers_t *images, int flag)
 							  0, machid, r2);
 		} else
 #endif
+#if RUN_SMF
+            printf("%p\n", kernel_entry);
+            asm("b .");
+            asm("b .");
+            /* should be comformed to 64-bit Linux */
+            /* here is now 32-bit Linux boot param */
+            lx_args_32.kernel_entry = (unsigned int)kernel_entry;
+            lx_args_32.zero = 0;
+            lx_args_32.arch = machid;
+            lx_args_32.params = r2;
+            smcfn(UBOOT_SMC_RUN_KERNEL, (unsigned int)&lx_args_32, 0, 0);
+#else
 			kernel_entry(0, machid, r2);
+#endif
 	}
 #endif
 }

@@ -36,6 +36,8 @@
 #include <asm/byteorder.h>
 #include <asm/io.h>
 
+#include "asm/arch/mach/platform.h"
+
 DECLARE_GLOBAL_DATA_PTR;
 
 #if	!defined(CONFIG_ENV_IS_IN_EEPROM)	&& \
@@ -686,9 +688,50 @@ ulong getenv_ulong(const char *name, int base, ulong default_val)
 
 #ifndef CONFIG_SPL_BUILD
 #if defined(CONFIG_CMD_SAVEENV) && !defined(CONFIG_ENV_IS_NOWHERE)
+
+#if (defined(CONFIG_MS_NAND) && defined(CONFIG_MS_EMMC))
+extern DEVINFO_BOOT_TYPE ms_devinfo_boot_type(void);
+extern char *nand_env_name_spec;
+extern char *mmc_env_name_spec;
+#endif
+
 static int do_env_save(cmd_tbl_t *cmdtp, int flag, int argc,
 		       char * const argv[])
 {
+#if defined(CONFIG_NAND_ONEBIN)
+#ifndef CONFIG_MS_SAVE_ENV_IN_ISP_FLASH
+#if defined(CONFIG_CMD_SAVEENV) && defined(CONFIG_CMD_NAND) && defined(CONFIG_MS_EMMC)
+    extern DEVINFO_BOOT_TYPE ms_devinfo_boot_type(void);
+    char *env_name_spec = NULL;
+    if (DEVINFO_BOOT_TYPE_EMMC==ms_devinfo_boot_type())
+    {
+        extern char *mmc_env_name_spec;
+        env_name_spec=mmc_env_name_spec;
+    }
+    else if (DEVINFO_BOOT_TYPE_NAND==ms_devinfo_boot_type())
+    {
+        extern char *nand_env_name_spec;
+        env_name_spec=nand_env_name_spec;
+    }
+#endif
+#endif
+
+#else
+
+#ifndef CONFIG_MS_SAVE_ENV_IN_ISP_FLASH
+#if defined(CONFIG_CMD_SAVEENV)
+    char *env_name_spec = NULL;
+#if defined(CONFIG_ENV_IS_IN_MMC)
+    extern char *mmc_env_name_spec;
+    env_name_spec=mmc_env_name_spec;
+#elif defined(CONFIG_ENV_IS_IN_NAND)
+    extern char *nand_env_name_spec;
+    env_name_spec=nand_env_name_spec;
+#endif
+#endif
+#endif
+
+#endif
 	printf("Saving Environment to %s...\n", env_name_spec);
 
 	return saveenv() ? 1 : 0;

@@ -104,6 +104,7 @@ obj-$(CONFIG_CMD_FUSE) += cmd_fuse.o
 obj-$(CONFIG_CMD_GETTIME) += cmd_gettime.o
 obj-$(CONFIG_CMD_GPIO) += cmd_gpio.o
 obj-$(CONFIG_CMD_I2C) += cmd_i2c.o
+obj-$(CONFIG_CMD_SAR) += cmd_sar.o
 obj-$(CONFIG_CMD_IOTRACE) += cmd_iotrace.o
 obj-$(CONFIG_CMD_HASH) += cmd_hash.o
 obj-$(CONFIG_CMD_IDE) += cmd_ide.o
@@ -174,19 +175,29 @@ obj-$(CONFIG_CMD_LZMADEC) += cmd_lzmadec.o
 endif
 ifdef CONFIG_CMD_USB
 obj-y += cmd_usb.o
-obj-y += usb.o usb_hub.o
+obj-y += usb.o
+#obj-y +=usb_hub.o
 obj-$(CONFIG_USB_STORAGE) += usb_storage.o
 endif
-obj-$(CONFIG_CMD_FASTBOOT) += cmd_fastboot.o
+
+obj-$(CONFIG_CMD_FASTBOOT) += cmd_usbd.o
+obj-$(CONFIG_CMD_USBSTART) += cmd_usbd.o
+obj-$(CONFIG_CMD_OTPCTRL) += cmd_otpctrl.o
+obj-$(CONFIG_CMD_OTPBURN) += cmd_otpburn.o
+
 obj-$(CONFIG_CMD_FS_UUID) += cmd_fs_uuid.o
 
 obj-$(CONFIG_CMD_USB_MASS_STORAGE) += cmd_usb_mass_storage.o
+obj-$(CONFIG_CMD_SSTAR_UFU) += cmd_usb_firmware_update.o
 obj-$(CONFIG_CMD_THOR_DOWNLOAD) += cmd_thordown.o
 obj-$(CONFIG_CMD_XIMG) += cmd_ximg.o
 obj-$(CONFIG_YAFFS2) += cmd_yaffs2.o
 obj-$(CONFIG_CMD_SPL) += cmd_spl.o
 obj-$(CONFIG_CMD_ZIP) += cmd_zip.o
 obj-$(CONFIG_CMD_ZFS) += cmd_zfs.o
+obj-$(CONFIG_CMD_BOOTLOGO) += cmd_bootlogo.o
+obj-$(CONFIG_CMD_CAMDRIVER) += cmd_camdriver.o
+
 
 # others
 obj-$(CONFIG_BOOTSTAGE) += bootstage.o
@@ -254,12 +265,6 @@ obj-$(CONFIG_IO_TRACE) += iotrace.o
 obj-y += memsize.o
 obj-y += stdio.o
 
-# This option is not just y/n - it can have a numeric value
-ifdef CONFIG_FASTBOOT_FLASH_MMC_DEV
-obj-y += aboot.o
-obj-y += fb_mmc.o
-endif
-
 obj-$(CONFIG_CMD_BLOB) += cmd_blob.o
 
 # We always have this since drivers/ddr/fs/interactive.c needs it
@@ -269,7 +274,93 @@ obj-y += cli.o
 obj-y += cli_readline.o
 obj-y += command.o
 obj-y += s_record.o
-obj-y += xyzModem.o
+obj-$(CONFIG_SPL_YMODEM_SUPPORT) += xyzModem.o
 obj-y += cmd_disk.o
 
+obj-y += cmd_auto_upgrade.o
+obj-y += cmd_mstar.o cmd_osd.o
+obj-$(CONFIG_MS_SDMMC) += cmd_sdmmc_ipv.o
+
+ifdef CONFIG_MS_GPIO
+obj-y += MsDebug.o
+obj-$(CONFIG_MS_GPIO) += MsSysUtility.o
+endif
+
+ifdef CONFIG_MS_NAND
+CFLAGS_env_nand.o  += -I$(srctree)/drivers/mstar/unfd/inc/api
+CFLAGS_env_nand.o  += -I$(srctree)/drivers/mstar/unfd/inc/common
+CFLAGS_env_nand.o  += -I$(srctree)/drivers/mstar/unfd/inc/config
+endif
+
+ifdef CONFIG_MS_SPINAND
+CFLAGS_env_nand.o  += -I$(srctree)/drivers/mstar/spinand/inc/common
+CFLAGS_env_nand.o  += -I$(srctree)/drivers/mstar/spinand/inc/config
+CFLAGS_env_nand.o  += -I$(srctree)/drivers/mstar/spinand/inc/config/$(CONFIG_SYS_CONFIG_NAME)
+CFLAGS_cmd_mstar.o  += -I$(srctree)/drivers/mstar/spinand/inc/config/$(CONFIG_SYS_CONFIG_NAME)
+ifdef CONFIG_MS_NAND_ONEBIN
+CFLAGS_cmd_nand.o  += -I$(srctree)/drivers/mstar/nandflash/inc
+else
+CFLAGS_cmd_nand.o  += -I$(srctree)/drivers/mstar/spinand/inc/config/$(CONFIG_SYS_CONFIG_NAME)
+endif
+endif
+
+ifdef CONFIG_MS_SRCFG
+obj-y += cmd_srcfg.o
+endif
+ccflags-y += -I$(srctree)/drivers/mstar/flash_util/inc/
+CFLAGS_cmd_sigauth.o += -I$(srctree)/include
+CFLAGS_cmd_mstar.o += -I$(srctree)
+CFLAGS_env_sf.o += -I$(srctree)
+
 CFLAGS_env_embedded.o := -Wa,--no-warn -DENV_CRC=$(shell tools/envcrc 2>/dev/null)
+ifdef CONFIG_SSTAR_SAR
+CFLAGS_cmd_sar.o += -I$(srctree)/drivers/mstar/sar
+endif
+
+ifdef CONFIG_SSTAR_DISP
+CFLAGS_cmd_bootlogo.o += -I$(srctree)/drivers/mstar/common
+CFLAGS_cmd_bootlogo.o += -I$(srctree)/drivers/mstar/disp/drv/midisp/pub
+CFLAGS_cmd_bootlogo.o += -I$(srctree)/drivers/mstar/cmdq_service/drv/pub
+CFLAGS_cmd_camdriver.o += -I$(srctree)/drivers/mstar/common
+CFLAGS_cmd_camdriver.o += -I$(srctree)/drivers/mstar/disp/drv/midisp/pub
+CFLAGS_cmd_camdriver.o += -I$(srctree)/drivers/mstar/cmdq_service/drv/pub
+endif
+
+ifdef CONFIG_SSTAR_PNL
+CFLAGS_cmd_bootlogo.o += -I$(srctree)/drivers/mstar/common
+CFLAGS_cmd_bootlogo.o += -I$(srctree)/drivers/mstar/panel/drv/mipnl/pub
+CFLAGS_cmd_camdriver.o += -I$(srctree)/drivers/mstar/common
+CFLAGS_cmd_camdriver.o += -I$(srctree)/drivers/mstar/panel/drv/mipnl/pub
+endif
+
+ifdef CONFIG_SSTAR_HDMITX
+CFLAGS_cmd_bootlogo.o += -I$(srctree)/drivers/mstar/common
+CFLAGS_cmd_bootlogo.o += -I$(srctree)/drivers/mstar/hdmitx/drv/hdmitx/pub
+CFLAGS_cmd_bootlogo.o += -I$(srctree)/drivers/mstar/hdmitx/drv/mihdmitx/pub
+CFLAGS_cmd_camdriver.o += -I$(srctree)/drivers/mstar/common
+CFLAGS_cmd_camdriver.o += -I$(srctree)/drivers/mstar/hdmitx/drv/hdmitx/pub
+CFLAGS_cmd_camdriver.o += -I$(srctree)/drivers/mstar/hdmitx/drv/mihdmitx/pub
+endif
+
+ifdef CONFIG_SSTAR_JPD
+CHIP_NAME := $(subst ",,$(CONFIG_SYS_CONFIG_NAME))
+CFLAGS_cmd_bootlogo.o += -I$(srctree)/drivers/mstar/jpd/$(CHIP_NAME)/inc
+CFLAGS_cmd_camdriver.o += -I$(srctree)/drivers/mstar/jpd/$(CHIP_NAME)/inc
+endif
+
+ifdef CONFIG_SSTAR_RGN
+CFLAGS_cmd_bootlogo.o += -I$(srctree)/drivers/mstar/rgn/drv/pub
+CFLAGS_cmd_camdriver.o += -I$(srctree)/drivers/mstar/rgn/drv/pub
+endif
+
+ifdef CONFIG_MS_PARTITION
+CFLAGS_cmd_bootlogo.o += -I$(srctree)/drivers/mstar/partition
+endif
+
+ifdef CONFIG_SSTAR_INI_PARSER
+CFLAGS_cmd_bootlogo.o  += -I$(srctree)/drivers/mstar/iniparser
+endif
+
+ifdef CONFIG_MS_EMMC_RECOVERY
+obj-$(CONFIG_MS_EMMC_RECOVERY) += SsRecovery.o
+endif
